@@ -1,0 +1,338 @@
+---
+title: "Homework 5"
+author: "Camden Possinger"
+output: 
+      prettydoc::html_pretty:
+        theme: hpstr
+        toc: true
+        toc_depth: 5
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Answers 
+
+## Part I
+
+### 1.
+
+```{r message=FALSE, warning=FALSE}
+library(magrittr)
+library(dplyr)
+library(rlang)
+library(purrr)
+library(kableExtra)
+library(stringr)
+
+mydata = read.table("ColorStudy.txt", header=T)
+
+mean.CI <- function(whichlevel,alpha,Y,mylevel,responselevel,level.names){
+  factor_mean <- Y %>% filter(!!as.symbol(mylevel) == whichlevel) %>% extract2(responselevel) %>% mean
+  r <- Y %>% extract2(mylevel) %>% unique %>% length
+  n_T <- Y %>% extract2(mylevel) %>% length
+  t_critical_value <- qt(1-(alpha/2),n_T-r)
+  n_i <- Y %>% filter(!!as.symbol(mylevel) == whichlevel) %>% extract2(mylevel) %>% length
+  level.observations <- level.names %>% lapply(function(x){mydata %>% filter(!!as.symbol(mylevel) == x) %>% extract2(responselevel)})
+  level.means <- level.names %>% lapply(function(x){mydata %>% filter(!!as.symbol(mylevel) == x) %>% extract2(responselevel) %>% mean})
+  SSE <- map2(level.observations,level.means,~(.x-.y)^2) %>% unlist %>% sum
+  MSE <- SSE/(n_T-r)
+  s_2 <- MSE/n_i
+  lower_bound <- factor_mean-((t_critical_value)*sqrt(s_2))
+  upper_bound <- factor_mean+((t_critical_value)*sqrt(s_2))
+
+  return(c(lower_bound,upper_bound))
+}
+
+
+mean.CI("blue",0.05,mydata,"Color","ResponseRate",c("blue","green","orange","white"))
+
+```
+### 2.
+
+
+```{r message=TRUE, warning=FALSE}
+contrast.CI <- function(coefficients,alpha,method,Y,mylevel,responselevel,level.names){
+ factor_means <- level.names %>% map(~mydata %>% filter(!!as.symbol(mylevel) == .x) %>% extract2(responselevel) %>% mean) 
+ r <- Y %>% extract2(mylevel) %>% unique %>% length
+ n_T <- Y %>% extract2(mylevel) %>% length
+ L_hat <- factor_means %>% map2(coefficients,~.y * .x) %>% unlist %>%  sum
+ n_is <- level.names %>% map(~Y %>% filter(!!as.symbol(mylevel) == .x) %>% extract2(mylevel) %>% length)
+ level.observations <- level.names %>% lapply(function(x){mydata %>% filter(!!as.symbol(mylevel) == x) %>% extract2(responselevel)})
+  level.means <- level.names %>% lapply(function(x){mydata %>% filter(!!as.symbol(mylevel) == x) %>% extract2(responselevel) %>% mean})
+  SSE <- map2(level.observations,level.means,~(.x-.y)^2) %>% unlist %>% sum
+  MSE <- SSE/(n_T-r)
+  c_is_divided_by_n_i <- coefficients %>% map2_dbl(n_is,~(.x)^2/.y) %>% sum
+  s_2 <- MSE * c_is_divided_by_n_i
+  
+  Bonferroni.g <- 1
+  # if a digit is detected extract the digit and extract the remaining word character for later comparison
+  if(method %>% str_detect("\\d+")){
+  # Use a regular expression to extract all digits
+  Bonferroni.g <- method %>% str_extract("\\d+") %>% as.integer
+  # Use a regular expression to extract all characters
+  method %<>% str_extract("[:alpha:]+") 
+  }
+  # If the number of Bonferroni tests is 0 return error message
+  if(Bonferroni.g == 0){
+    return(message("Number of Bonferroni Tests is 0"))
+  }
+  
+  if(method == "Bonferroni"){
+  lower_bound <- L_hat - (qt(1-(alpha/(2*Bonferroni.g)),n_T-r) * sqrt(s_2))
+  upper_bound <- L_hat + (qt(1-(alpha/2*Bonferroni.g),n_T-r) * sqrt(s_2))
+  }
+  else if(method == "Scheffe"){
+   lower_bound <- L_hat - (sqrt((r-1)*(qf(1-alpha,r-1,n_T - r))) * sqrt(s_2))
+  upper_bound <- L_hat +  (sqrt((r-1)*(qf(1-alpha,r-1,n_T - r))) * sqrt(s_2)) 
+  }
+  else if(method == "Tukey"){
+   lower_bound <- L_hat - (qtukey(1-alpha,r,n_T-r)/sqrt(2) * sqrt(s_2))
+  upper_bound <- L_hat + (qtukey(1-alpha,r,n_T-r)/sqrt(2) * sqrt(s_2)) 
+  }
+  else{
+    return(message("Invalid Method"))
+  }
+  
+  return(c(lower_bound,upper_bound))
+}
+
+contrast.CI(c(1,0,0,0),0.05,"Bonferroni 0", mydata, "Color","ResponseRate",c("blue","green","orange","white"))
+contrast.CI(c(1,0,0,0),0.05,"Bonferroni", mydata, "Color","ResponseRate",c("blue","green","orange","white"))
+contrast.CI(c(1,0,0,0),0.05,"Bonferroni 5", mydata, "Color","ResponseRate",c("blue","green","orange","white"))
+contrast.CI(c(1,0,0,0),0.05,"Turkey", mydata, "Color","ResponseRate",c("blue","green","orange","white"))
+
+
+```
+
+
+
+## Part II. 
+
+### 1.
+
+#### i.
+
+```{r message=FALSE, warning=FALSE}
+# blue green orange white
+contrast_list <- list(c(1,0,-1,0),c(0,1,0,-1),c(1/2,1/2,-1/2,-1/2),c(1/2,-1/2,1/2,-1/2),c(3/4,-1/4,-1/4,-1/4),c(-1/3,1,-1/3,-1/3),c(-1/3,-1/3,1,-1/3),c(-1/3,-1/3,-1/3,1))
+
+part_i_intervals <- contrast_list %>% map(~contrast.CI(.x,0.05,"Scheffe",mydata,"Color","ResponseRate",c("blue","green","orange","white")))
+
+part_i_lower_bound <- part_i_intervals %>% map_dbl(~.x[1])
+part_i_upper_bound <- part_i_intervals %>% map_dbl(~.x[2])
+
+
+part_i_display_table <- data.frame("Test" = c("L1","L2","L3","L4","L5","L6","L7","L8"),"Lower Bound" = part_i_lower_bound,"Upper Bound" = part_i_upper_bound)
+
+part_i_display_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+```
+
+In this part we're interested in all possible contrasts, but we can't construct all of them so we consider eight contrasts. Since we're interested in all possible contrasts the only procedure we can use is the Scheffe Procedure. The confidence intervals with a family confidence level of 95% are constructed in the table above.
+
+
+#### ii.
+
+```{r message=FALSE, warning=FALSE}
+
+part_ii_compare_methods <- data.frame("Scheffe" = sqrt((3)*(qf(1-0.05,3,53))),"Bonferroni" = qt(1-0.05/(2*8),53))
+
+part_ii_compare_methods %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+part_ii_intervals <- contrast_list %>% map(~contrast.CI(.x,0.05,"Bonferroni 8",mydata,"Color","ResponseRate",c("blue","green","orange","white")))
+
+part_ii_lower_bound <- part_ii_intervals %>% map_dbl(~.x[1])
+part_ii_upper_bound <- part_ii_intervals %>% map_dbl(~.x[2])
+
+
+part_ii_display_table <- data.frame("Test" = c("L1","L2","L3","L4","L5","L6","L7","L8"),"Lower Bound" = part_ii_lower_bound,"Upper Bound" = part_ii_upper_bound)
+
+part_ii_display_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+```
+
+In this part we're interested in only eight contrasts. We can't use the Tukey procedure since we're interested in contrasts, but we can use the Bonferroni Procedure and Scheffe Procedure. From the above table we can see that the Bonferroni multiplier is a tiny bit smaller than the Scheffe multiplier. Since the Bonferroni multiplier is smaller we should use the Bonferroni multiplier to construct the shortest possible confidence intervals. The confidence intervals with a family confidence level of 95% are constructed in the table above.
+
+
+#### iii.
+
+```{r message=FALSE, warning=FALSE}
+part_iii_pairwise_comps <- list(c(1,0,-1,0),c(0,1,0,-1))
+
+part_iii_compare_methods <- data.frame("Tukey" = qtukey(1-0.05,4,53)/sqrt(2) ,"Bonferroni" =qt(1-0.05/(2*6),53),"Scheffe" = sqrt(3*(qf(1-0.05,3,53))))
+
+part_iii_intervals <- part_iii_pairwise_comps %>% map(~contrast.CI(.x,0.05,"Tukey",mydata,"Color","ResponseRate",c("blue","green","orange","white")))
+
+part_iii_compare_methods %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+part_iii_lower_bound <- part_iii_intervals %>% map_dbl(~.x[1])
+part_iii_upper_bound <- part_iii_intervals %>% map_dbl(~.x[2])
+
+
+part_iii_display_table <- data.frame("Test" = c("L1","L2"),"Lower Bound" = part_iii_lower_bound,"Upper Bound" = part_iii_upper_bound)
+
+part_iii_display_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+In this part we were initially interested in all pairwise comparisons, but decided to look at the data and only compare two pairwise comparisons. We have the issue of data snooping once we look at the data. This means that we have to consider the Bonferroni procedure for all possible pairwise combinations. We can possibly use this modified Bonferroni procedure along with the Scheffe Procedure and Tukey Procedure, since we are considering pairwise combinations. According to the above table the Tukey Procedure has the smallest multiplier, so we should use the Tukey Procedure to construct the shortest possible confidence intervals. The confidence intervals with a family confidence level of 95% are constructed in the table above.
+
+#### iv.
+
+```{r message=FALSE, warning=FALSE}
+
+part_iv_pairwise_comps <- list(c(1,0,-1,0),c(0,1,0,-1))
+
+part_iv_compare_methods <- data.frame("Tukey" = qtukey(1-0.05,4,53)/sqrt(2) ,"Bonferroni" =qt(1-0.05/(2*2),53),"Scheffe" = sqrt(3*(qf(1-0.05,3,53))))
+
+part_iv_intervals <- part_iv_pairwise_comps %>% 
+  map(~contrast.CI(.x,0.05,"Bonferroni 2",mydata,"Color","ResponseRate",c("blue","green","orange","white")))
+
+part_iv_compare_methods %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+part_iv_lower_bound <- part_iv_intervals %>% map_dbl(~.x[1])
+part_iv_upper_bound <- part_iv_intervals %>% map_dbl(~.x[2])
+
+
+part_iv_display_table <- data.frame("Test" = c("L1","L2"),"Lower Bound" = part_iv_lower_bound,"Upper Bound" = part_iv_upper_bound)
+
+part_iv_display_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+```
+
+In this part we're interested in two pairwise tests before we see the data. Potentially we can use all three procedures and their multipliers to construct confidence intervals, since we are interested in pairwise comparisons and are looking at a fixed subset of them, but we need to determine which one will construct the shortest intervals. From the above table we can see that the Bonferroni Procedure gives the smallest multiplier. We should use the Bonferroni Procedure to construct the shortest confidence intervals. The confidence intervals with a family confidence level of 95% are constructed in the table above.
+
+#### v.
+
+```{r message=FALSE, warning=FALSE}
+ 
+ max <- mydata %>% filter(ResponseRate == ResponseRate %>% max)
+ min <-  mydata %>% filter(ResponseRate == ResponseRate %>% min)
+ 
+ max_min_table <- data.frame("Color" = c(max$Color,min$Color),"ResponseRate" = c(paste0("Max ",max$ResponseRate),paste0("Min ",min$ResponseRate))) 
+
+max_min_table %>%
+   kable() %>%
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+part_v_compare_methods <- data.frame("Tukey" = qtukey(1-0.05,4,53)/sqrt(2) ,"Bonferroni" =qt(1-0.05/(2*6),53),"Scheffe" = sqrt(3*(qf(1-0.05,3,53))))
+
+part_v_interval <- contrast.CI(c(0,1,0,-1),0.05,"Tukey",mydata,"Color","ResponseRate",c("blue","green","orange","white"))
+
+part_v_compare_methods %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+part_v_lower_bound <- part_v_interval[1] 
+part_v_upper_bound <- part_v_interval[2] 
+
+
+part_v_display_table <- data.frame("Test" = c("L2"),"Lower Bound" = part_v_lower_bound,"Upper Bound" = part_v_upper_bound)
+
+part_v_display_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+In this part we are interested in a single pairwise combination after we look at the data. This means we can use all three procedures, but for the Bonferroni Procedure g has to be set to the total number of pairwise combinations which is six. From the table above we can see that the Tukey procedure provides the smallest multiplier. We should use the Tukey Procedure since it will yield the shortest confidence interval. The confidence interval with a family confidence level of 95% is constructed in the table above.
+
+### 2.
+
+#### i.
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+residuals <- c("blue","green","orange","white") %>% map(~mydata %>% filter(Color == .x) %>% extract2("ResponseRate") - mydata %>% filter(Color == .x) %>% extract2("ResponseRate") %>% mean) %>% unlist
+factor_means <- c("blue","green","orange","white") %>% map(~mydata %>% filter(Color == .x) %>% extract2("ResponseRate") %>% mean) %>% unlist 
+fitted_values <- c(rep(factor_means[1],14),rep(factor_means[2],14),rep(factor_means[3],15),rep(factor_means[4],14))
+ggplot(mydata,aes(x = fitted_values,y = residuals,color = Color)) + geom_point()+scale_color_manual(values = c("blue","green","orange","white"),labels = c("Blue","Green","Orange","White"))+xlab("Fitted Values")+ylab("Residuals")
+
+
+```
+
+In the plot above of the residuals against the fitted values with the corresponding colors of the factor levels we get an idea of the variance of the residuals. We can see that for the most part the variance appears constant for each factor level. The variance for the colors blue and green are smaller than the variances of orange and white, but for the most part they seem to validate the model assumption that the variance of the error terms are constant. We need to conduct a hypothesis test to provide evidence for this observation.
+
+#### ii.
+
+```{r message=FALSE, warning=FALSE}
+factor_levels <- c("blue","green","orange","white")
+d <- factor_levels %>% map(~abs((mydata %>% filter(Color == .x) %>% extract2("ResponseRate")) - (mydata %>% filter(Color == .x) %>% extract2("ResponseRate") %>% median)))
+
+overall_mean <- d %>% unlist %>% mean
+MSTR <- d %>% map(~.x %>% length * (.x %>% mean - overall_mean)^2) %>% unlist %>% sum %>% divide_by(3)
+MSE <- d %>% map(~(.x-(.x %>% mean))^2) %>% unlist %>% sum %>% divide_by(53)
+F_stat <- MSTR/MSE
+display_table <- data.frame("F_Statistic" = F_stat,"F_Critical_Value" = qf(0.99,3,53),"P_Value" = pf(F_stat,3,53,lower.tail = FALSE))
+
+display_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+In this part we want to test whether the model assumption of constant error terms holds. The Brown-Forsythe test that we will conduct is: 
+
+$H_0: Var(\varepsilon_{ij})$ are all equal 
+
+$H_a: Var(\varepsilon_{ij})$ are not all equal 
+
+The F test statistic is computed by dividing the MSTR of the $d_i$'s by the MSE of the $d_i$'s and is displayed in the table above.
+
+The decision rule is reject the null hypothesis if $F_{BR} \geq 4.174218$ and fail to reject the null hypothesis when $F_{BR} \leq 4.174218$ 
+
+As shown in the table above the F statistic is smaller than 4.174218 and the P-value is greater than 0.01 so we fail to reject the null hypothesis and conclude that the assumption of constant error term variance holds at a 0.01 significance level.
+
+
+
+#### iii.
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+library(plotly)
+
+residuals <- factor_levels %>% map(~(mydata %>% filter(Color == .x) %>% extract2("ResponseRate") - mydata %>% filter(Color == .x) %>% extract2("ResponseRate") %>% mean)) %>% unlist
+
+residuals_standard <- residuals -(residuals %>% mean) 
+residuals_standard <- residuals_standard/residuals %>% sd 
+
+qq_plot <- ggplot(mapping = aes(sample = residuals_standard)) + geom_qq()+geom_qq_line(col = 2)+labs(title = "Normal Q-Q Plot")+xlab("Theoretical Quantiles")+ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())
+
+qq_plot %<>% ggplotly
+qq_plot
+
+```
+
+The above plot is the sample distribution of the standardized residuals vs the normal distribution along with the Q-Q line in red. We can see that for the most part the points are close to the Q-Q line. There are some deviation in the tails, but the deviation is not significant. Here we can confirm the normality of the error terms assumption and conduct hypothesis tests and construct confidence intervals worry free.  
+
+
+
+## Acknowledgement
+
+I'd like to thank Zac Cordoni for his clarification of using the T-multiplier for Part 1 Problem 1
+
+I'd also like to thank Cynthia Huang for helping me understand the process of conducting a Brown-Forsythe test.
+
+
+
+
+
+
+

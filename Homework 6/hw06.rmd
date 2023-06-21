@@ -1,0 +1,478 @@
+---
+title: "Homework 6"
+author: "Camden Possinger"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+    toc: True
+    toc_depth: 4
+---
+
+# Answers 
+
+## Part I
+
+### 1.
+
+To prove that this equation is equal we need to solve each part and compare them 
+
+$\sum_{i = 1}^a \sum_{j = 1}^b \sum_{k = 1}^n (Y_{ijk} - \bar{Y_{...}})^2 =$
+
+$\sum_{i = 1}^a \sum_{j = 1}^b \sum_{k = 1}^n (Y_{ijk})^2 -2(Y_{ijk})(\bar{Y_{...}}) + (\bar{Y_{...}})^2$
+
+We can take the sums of each individual term.
+
+$\sum_{i = 1}^a \sum_{j = 1}^b \sum_{k = 1}^n (Y_{ijk})^2 - 2\sum_{i = 1}^a \sum_{j = 1}^b \sum_{k = 1}^n (Y_{ijk})(\bar{Y_{...}}) + \sum_{i = 1}^a \sum_{j = 1}^b \sum_{k = 1}^n (\bar{Y_{...}})^2$
+
+This simplifies to:
+
+$(Y_{...})^2 - 2(Y_{...})^2 + (Y_{...})^2 = 0$
+
+---
+
+Now let's simplify the SSA term.
+
+$nb\sum_{i = 1}^a(\bar{Y_{i..}} - \bar{Y_{...}})^2 =$
+
+$nb\sum_{i = 1}^a(\bar{Y_{i..}})^2 -2(\bar{Y_{i..}})(\bar{Y_{...}})+ (\bar{Y_{...}})^2 =$
+
+$nb\sum_{i = 1}^a(\bar{Y_{i..}})^2 -2\sum_{i = 1}^a(\bar{Y_{i..}})(\bar{Y_{...}})+ \sum_{i = 1}^a(\bar{Y_{...}})^2$
+
+This simplifies to:
+
+$\frac{(Y_{...})^2}{b^2n^2} - 2\frac{a(Y_{...})^2}{ab^2n^2} + \frac{a^2(Y_{...})^2}{a^2b^2n^2} =$
+
+$nb[2\frac{Y_{...}^2}{b^2n^2} - 2\frac{Y_{..}^2}{b^2n^2}] = 0$
+
+---
+
+Now let's simplify the SSB term
+
+$na\sum_{j = 1}^b(\bar{Y_{.j.}} - \bar{Y_{...}})^2 =$
+
+$na\sum_{j = 1}^b(\bar{Y_{.j.}})^2 -2(\bar{Y_{.j.}})(\bar{Y_{...}})+ (\bar{Y_{...}})^2 =$
+
+$na\sum_{j = 1}^b(\bar{Y_{.j.}})^2 -2\sum_{j = 1}^b(\bar{Y_{.j.}})(\bar{Y_{...}})+ \sum_{j = 1}^b(\bar{Y_{...}})^2$
+
+This simplifies to:
+
+$\frac{(Y_{...})^2}{a^2n^2} - 2\frac{b(Y_{...})^2}{ba^2n^2} + \frac{b^2(Y_{...})^2}{a^2b^2n^2} =$
+
+$na[2\frac{Y_{...}^2}{a^2n^2} - 2\frac{Y_{..}^2}{a^2n^2}] = 0$
+
+---
+
+Now lets simplify the SSAB term:
+
+$n\sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{ij.}} - \bar{Y_{i..}} - \bar{Y_{.j.}} + \bar{Y_{...}})^2$
+
+When the summation term is factored it becomes:
+
+$n\sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{ij.}})^2 +(\bar{Y_{i..}})^2 + (\bar{Y_{.j.}})^2 + (\bar{Y_{...}})^2 - 2(\bar{Y_{ij.}})(\bar{Y_{i..}})-2(\bar{Y_{ij.}})(\bar{Y_{.j.}})+2(\bar{Y_{ij.}})(\bar{Y_{...}})+2(\bar{Y_{i..}})(\bar{Y_{.j.}})-2(\bar{Y_{i..}})(\bar{Y_{...}})-2(\bar{Y_{.j.}})(\bar{Y_{...}})$
+
+We can then take the summation of each term.
+
+$n[\sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{ij.}})^2 +\sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{i..}})^2 + \sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{.j.}})^2 + \sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{...}})^2 - 2\sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{ij.}})(\bar{Y_{i..}})-2\sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{ij.}})(\bar{Y_{.j.}})+2\sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{ij.}})(\bar{Y_{...}})+2\sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{i..}})(\bar{Y_{.j.}})-2\sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{i..}})(\bar{Y_{...}})-2\sum_{i = 1}^a\sum_{j = 1}^b(\bar{Y_{.j.}})(\bar{Y_{...}})]$
+
+When this is simplified we get:
+
+$\frac{(Y_{...})^2}{n^2}+\frac{b^2(Y_{...})^2}{b^2n^2} + \frac{a^2(Y_{...})^2}{a^2n^2} + \frac{a^2b^2(Y_{...})^2}{a^2b^2n^2} -2\frac{b(Y_{...})^2}{bn^2}- 2\frac{a(Y_{...})^2}{an^2} + 2\frac{ab(Y_{...})^2}{abn^2} + 2\frac{ab(Y_{...})^2}{abn^2}-2\frac{ab^2(Y_{...})^2}{ab^2n^2} - 2\frac{a^2b(Y_{...})^2}{a^2bn^2}$
+
+This simplifies to:
+
+$n[4\frac{(Y_{...})^2}{n^2}-2\frac{(Y_{...})^2}{n^2}-2\frac{(Y_{...})^2}{n^2}+2\frac{(Y_{...})^2}{n^2}+2\frac{(Y_{...})^2}{n^2}-2\frac{(Y_{...})^2}{n^2}-2\frac{(Y_{...})^2}{n^2}] = 0$
+
+---
+
+Now finally let's simplify the SSE term:
+
+$\sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^n(Y_{ijk} - \bar{Y_{ij.}})^2$
+
+$\sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^n(Y_{ijk})^2 -2(Y_{ijk})(\bar{Y_{ij.}})+ (\bar{Y_{ij.}})^2=$
+
+$\sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^n(Y_{ijk})^2 -2\sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^n(Y_{ijk})(\bar{Y_{ij.}})+ \sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^n(\bar{Y_{ij.}})^2$
+
+This simplifies to:
+
+$(Y_{...})^2 - 2\frac{n(Y_{...})^2}{n} + \frac{n^2(Y_{...})^2}{n^2}=$
+
+$2(Y_{...})^2 - 2(Y_{...})^2 = 0$
+
+Now that we've simplified each term we can see that $0 = 0+0+0+0$ which makes this expression equal.
+
+### 2.
+
+#### $\hat{\alpha_i}$
+
+---
+
+$\hat{\alpha_i} = \bar{Y_{i..}} - \bar{Y_{...}}$  
+
+$E(\hat{\alpha_i}) = E(\bar{Y_{i..}} - \bar{Y_{...}})$ 
+
+which can be expressed as:
+
+$E(\hat{\alpha_i}) = E(\bar{Y_{i..}}) - E(\bar{Y_{...}})$ 
+
+Now we can start by finding $E(\bar{Y_{i..}})$
+
+$E(\bar{Y_{i..}}) = E(\frac{Y_{i..}}{bn}) = \frac{1}{bn} E(Y_{i..})$ 
+
+This is equal to:  
+
+$\frac{1}{bn}E(\sum_{j = 1}^b \sum_{k = 1}^n Y_{ijk}) = \frac{1}{bn}\sum_{j = 1}^b \sum_{k = 1}^n E(Y_{ijk})$ We know that $E(Y_{ijk}) = \mu_{ij}$
+
+$\frac{1}{bn}\sum_{j = 1}^b \sum_{k = 1}^n \mu_{ij} = \frac{n}{bn}\sum_{j = 1}^b \mu_{ij} = \frac{1}{b}\sum_{j = 1}^b \mu_{ij} = \frac{1}{b}\mu_{i.} = \bar{\mu_i.}$
+
+Now we need to find $E(\bar{Y_{...}})$
+
+$E(\bar{Y_{...}}) = E(\frac{Y_{...}}{abn}) = E(\frac{\sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^n Y_{ijk}}{abn})$
+
+$\frac{1}{abn} E(\sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^n Y_{ijk}) =  \frac{1}{abn} \sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^n E(Y_{ijk})$
+
+$\frac{1}{abn} \sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^n \mu_{ij} = \frac{n}{abn} \sum_{i = 1}^a\sum_{j = 1}^b \mu_{ij}$ 
+
+$\frac{1}{ab} \sum_{i = 1}^a\sum_{j = 1}^b \mu_{ij} =  \frac{1}{ab}\mu_{..} = \bar{\mu_{..}}$
+
+so $E(\hat{\alpha_{i}}) = \bar{\mu_{i.}} - \bar{\mu_{..}}$
+
+---
+
+$Var(\hat{\alpha_{i}}) = Var(\bar{Y_{i..}} - \bar{Y_{...}})$
+
+$\bar{Y_{...}} = \frac{\sum_{i = 1}^a \sum_{j = 1}^b \sum_{k = 1}^n Y_{ijk}}{abn}$ 
+
+This can be written as:
+
+$\frac{\sum_{i = 1}^a (\frac{\sum_{j = 1}^b \sum_{k = 1}^n Y_{ijk}}{bn})}{a} = \frac{\sum_{i = 1}^a \bar{Y_{i..}}}{a}$
+
+$Var(\hat{\alpha_{i}}) = Var(\bar{Y_{i..}} - \frac{\sum_{i = 1}^a \bar{Y_{i..}}}{a})$
+
+The $\bar{Y_{i..}}$'s are independent so we can simplify this expression.
+
+$Var(\hat{\alpha_{i}}) = Var[(1-\frac{1}{a})\bar{Y_{i..}} - \frac{1}{a} \sum_{i = 2}^a \bar{Y_{i..}}]$ 
+
+Now we only need to calculate the variance of $\bar{Y_{i..}}$
+
+$Var(\bar{Y_{i..}}) = Var(\frac{\sum_{j = 1}^b \sum_{k = 1}^n Y_{ijk}}{bn}) = \frac{\sum_{j = 1}^b \sum_{k = 1}^n Var(Y_{ijk})}{b^2n^2} =$
+
+$\frac{bn \cdot \sigma^2}{b^2n^2} = \frac{\sigma^2}{bn}$
+
+So now we can plug in this value.
+
+$Var(\hat{\alpha_{i}}) = (1-\frac{1}{a})^2 \frac{\sigma^2}{bn} + \frac{1}{a^2}(a-1)\frac{\sigma^2}{bn}$ 
+
+which simplifies to: 
+
+$(1 - \frac{2}{a} + \frac{1}{a^2} + \frac{1}{a} - \frac{1}{a^2}) \frac{\sigma^2}{bn} =$
+
+$Var(\hat{\alpha_i}) = (1-\frac{1}{a})\frac{\sigma^2}{bn}$
+
+
+
+
+
+#### $\hat{\beta_{j}}$
+
+---
+
+$\hat{\beta_{j}} = \bar{Y_{.j.}} - \bar{Y_{...}}$
+
+$E(\hat{\beta_{j}}) = E(\bar{Y_{.j.}} - \bar{Y_{...}})$
+
+$E(\hat{\beta_{j}}) = E(\bar{Y_{.j.}}) - E(\bar{Y_{...}})$
+
+We need to find $E(\bar{Y_{.j.}})$
+
+$E(\bar{Y_{.j.}}) = E(\frac{Y_{.j.}}{an}) = E(\frac{\sum_{i = 1}^a \sum_{k = 1}^n Y_{ijk}}{an})$
+
+$\frac{1}{an} E(\sum_{i = 1}^a \sum_{k = 1}^n Y_{ijk}) = \frac{1}{an} \sum_{i = 1}^a \sum_{k = 1}^n E(Y_{ijk})$
+
+$\frac{1}{an} \sum_{i = 1}^a \sum_{k = 1}^n \mu_{ij}  =  \frac{n}{an} \sum_{i = 1}^a\mu_{ij} =   \frac{1}{a} \sum_{i = 1}^a\mu_{ij}$
+
+$\frac{1}{a}\mu_{.j} = \bar{\mu_{.j}}$
+
+We already know from the previous derivation of $E(\hat{\alpha_{i}})$ that $E(\bar{Y_{...}}) = \bar{\mu_{..}}$
+
+$E(\hat{\beta_{j}}) = \bar{\mu_{.j}} - \bar{\mu_{..}}$
+
+---
+
+$Var(\hat{\beta_j}) = Var(\bar{Y_{.j.}} - \bar{Y_{...}})$
+
+$\bar{Y_{...}} = \frac{\sum_{i = 1}^a \sum_{j = 1}^b \sum_{k = 1}^n Y_{ijk}}{abn} = \frac{\sum_{j = 1}^b (\frac{\sum_{i  = 1}^a \sum_{k = 1}^n Y_{ijk}}{an})}{b}=$
+
+$\frac{\sum_{j = 1}^b \bar{Y_{.j.}}}{b}$
+
+$Var(\hat{\beta_j}) = Var[(1-\frac{1}{b}\bar{Y_{.j.}} - \frac{1}{b} \sum_{j = 2}^b \bar{Y_{.j.}})]$
+
+$Var(\bar{Y_{.j.}}) = Var(\frac{\sum_{i = 1}^a \sum_{k = 1}^n Y_{ijk}}{an}) = \frac{\sum_{i = 1}^a \sum_{k = 1}^n Var(Y_{ijk})}{a^2n^2} =$
+
+$\frac{an\cdot\sigma^2}{a^2n^2} = \frac{\sigma^2}{an}$
+
+$Var(\hat{\beta_j}) = (1-\frac{1}{b})^2\frac{\sigma^2}{an} + \frac{1}{b^2}(b-1) \frac{\sigma^2}{an} =$
+
+$(1-\frac{2}{b} + \frac{1}{b^2} + \frac{1}{b} - \frac{1}{b^2})\frac{\sigma^2}{an}$
+
+$Var(\hat{\beta_j}) = (1-\frac{1}{b})\frac{\sigma^2}{an}$ 
+
+
+#### $\hat{\gamma_{ij}}$
+
+---
+
+$\hat{\gamma_{ij}} = \bar{Y_{ij.}} - \bar{Y_{i..}} - \bar{Y_{.j.}} + \bar{Y_{...}}$
+
+$E(\hat{\gamma_{ij}}) = E(\bar{Y_{ij.}} - \bar{Y_{i..}} - \bar{Y_{.j.}} + \bar{Y_{...}})$
+
+
+$E(\hat{\gamma_{ij}}) = E(\bar{Y_{ij.}}) - E(\bar{Y_{i..}}) - E(\bar{Y_{.j.}}) + E(\bar{Y_{...}})$
+
+$E(\bar{Y_{ij.}}) = E(\frac{Y_{ij.}}{n}) = E(\frac{\sum_{k = 1}^n Y_{ijk}}{n})$
+
+$\frac{1}{n} E(\sum_{k = 1}^n Y_{ijk})  = \frac{1}{n} \sum_{k = 1}^n E(Y_{ijk}) = \frac{1}{n} \sum_{k = 1}^n \mu_{ij}$
+
+$\frac{n}{n} \mu_{ij} = \mu_{ij}$
+
+Since we already know the other expected values 
+
+$E(\hat{\gamma_{ij}}) = \mu_{ij} - \bar{\mu_{i.}} - \bar{\mu_{.j}} + \bar{\mu_{..}}$
+
+---
+
+$Var(\gamma_{ij}) = Var(\bar{Y_{ij.}} - \bar{Y_{i..}} - \bar{Y_{.j.}} + \bar{Y_{...}})$
+
+$\bar{Y_{ij.}} = \frac{\sum_{k = 1}^nY_{ijk}}{n}$
+
+$\bar{Y_{i..}} = \frac{\sum_{j = 1}^b\sum_{k = 1}^nY_{ijk}}{bn}$
+
+$\bar{Y_{.j.}} = \frac{\sum_{i = 1}^a\sum_{k = 1}^nY_{ijk}}{an}$
+
+$\bar{Y_{...}} = \frac{\sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^nY_{ijk}}{abn}$
+
+We can substitute these values into the original equation and since the $Y_{ijk}$'s are independent we can take the variance of each term.
+
+$Var(\gamma_{ij}) = Var(\frac{\sum_{k = 1}^nY_{ijk}}{n}) - Var(\frac{\sum_{j = 1}^b\sum_{k = 1}^nY_{ijk}}{bn})-Var(\frac{\sum_{i = 1}^a\sum_{k = 1}^nY_{ijk}}{an}) + Var(\frac{\sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^nY_{ijk}}{abn})$
+
+We can move the Variance inside the summation.
+
+$Var(\gamma_{ij}) = \frac{\sum_{k = 1}^nVar(Y_{ijk})}{n} - \frac{\sum_{j = 1}^b\sum_{k = 1}^nVar(Y_{ijk})}{bn}-\frac{\sum_{i = 1}^a\sum_{k = 1}^nVar(Y_{ijk})}{an} + \frac{\sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^nVar(Y_{ijk})}{abn}$
+
+We know that $Var(Y_{ijk}) = \sigma^2$
+
+$Var(\gamma_{ij}) = \frac{\sum_{k = 1}^n\sigma^2}{n} - \frac{\sum_{j = 1}^b\sum_{k = 1}^n\sigma^2}{bn}-\frac{\sum_{i = 1}^a\sum_{k = 1}^n\sigma^2}{an} + \frac{\sum_{i = 1}^a\sum_{j = 1}^b\sum_{k = 1}^n\sigma^2}{abn}$
+
+When we simplify the summation we get:
+
+$Var(\gamma_{ij}) = \frac{n\sigma^2}{n^2} - \frac{bn\sigma^2}{b^2n^2}-\frac{an\sigma^2}{a^2n^2} + \frac{abn\sigma^2}{a^2b^2n^2} =$
+
+
+$Var(\gamma_{ij}) = \frac{\sigma^2}{n} - \frac{\sigma^2}{bn}-\frac{\sigma^2}{a^2n^2} + \frac{\sigma^2}{abn} =$
+
+$Var(\gamma_{ij}) = (\frac{1}{n} - \frac{1}{bn} - \frac{1}{an} + \frac{1}{abn})\sigma^2=$
+
+$Var(\gamma_{ij}) = (\frac{ab-a-b+1}{abn})\sigma^2=$
+
+$Var(\gamma_{ij}) = (\frac{(a-1)(b-1)}{abn})\sigma^2$
+
+## Part II
+
+### 1.
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(purrr)
+library(magrittr)
+library(kableExtra)
+# gender 1: Male gender 2: Female Factor B
+# contact 1: no eye-contact contact 2: eye-contact Factor A
+# score: their score rated from 0 to 20
+
+aov_least_squares_estimates <- function(data,response_var,factor_a,factor_b){
+  factor_a_levels <- data %>% extract2(factor_a) %>% unique %>% length
+  factor_b_levels <- data %>% extract2(factor_b) %>% unique %>% length
+   
+  first_col_means <- c(1:factor_a_levels) %>% map2_dbl(rep(1,factor_a_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>%
+                                                           extract2(response_var) %>% mean)
+  second_col_means <- c(1:factor_b_levels) %>% map2_dbl(rep(2,factor_b_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>%
+                                                           extract2(response_var) %>% mean)
+  
+  factor_level_means <- cbind(first_col_means,second_col_means)
+  
+  factor_a_means <- factor_level_means %>% apply(MARGIN = 1,mean)
+  factor_b_means <- factor_level_means %>% apply(MARGIN = 2,mean)
+  
+  overall_mean <- data %>% extract2(response_var) %>% mean
+  
+  alpha_hat <- factor_a_means - overall_mean 
+  alpha_hat <- data.frame("Alpha_Hat" = alpha_hat)
+  beta_hat <- factor_b_means - overall_mean 
+  beta_hat <- data.frame("Beta_Hat" = beta_hat)
+  rownames(beta_hat) <- c(1:factor_b_levels)
+  
+first_col_gamma <- c(1:factor_a_levels) %>% map2_dbl(rep(1,factor_a_levels),~factor_level_means[.x,.y] - factor_a_means[.x] -factor_b_means[.y] + overall_mean)
+second_col_gamma <- c(1:factor_b_levels) %>% map2_dbl(rep(2,factor_b_levels),~factor_level_means[.x,.y] - factor_a_means[.x] -factor_b_means[.y] + overall_mean)
+gamma_hat <- cbind(first_col_gamma,second_col_gamma)
+gamma_hat <- data.frame("Gamma_Hat" = gamma_hat)
+colnames(gamma_hat) <- c("Gamma_Hat_1","Gamma_Hat_2")
+
+overall_mean <- data.frame("Mu" = overall_mean)
+
+
+return(list(overall_mean,alpha_hat,beta_hat,gamma_hat))
+  
+}
+
+EyeContact <- read.table("EyeContact.txt",header = TRUE)
+
+model_estimates <- aov_least_squares_estimates(EyeContact,"score","contact","gender")
+
+
+model_estimates[[1]] %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+model_estimates[[2]] %>% 
+   kable(row.names = TRUE) %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+model_estimates[[3]] %>% 
+   kable(row.names = TRUE) %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+model_estimates[[4]] %>% 
+   kable(row.names = TRUE) %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+### 2.
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+library(plotly)
+
+EyeContact %<>% group_by(contact,gender) 
+
+EyeContact$gender %<>% as.factor
+EyeContact$contact %<>% as.factor
+
+interaction_plot <- ggplot(data = EyeContact,aes(contact,score,color = gender,group = gender)) + 
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  ylab("Mean Score")+
+  xlab("Factor A: Eye Contact")+
+  labs(color = "Factor B: Gender")+
+  scale_x_discrete(labels = c("No Eye Contact","Eye Contact"))+
+  scale_color_discrete(labels = c("Male","Female"))
+
+interaction_plot
+
+
+```
+
+In this interaction plot of the Mean Scores on the y-axis, whether the applicant made eye contact or not on the x-axis, and the color of the lines denoting the gender of the officer, we can see there is a possible interaction effect since the lines are not perfectly parallel, but the effect of the interaction probably will not be significant. We need to conduct an F-test in order to test whether the interaction effect is significant or not.
+
+### 3.
+
+
+```{r message=FALSE, warning=FALSE}
+ 
+anova.table <- function(data,response,factor_a,factor_b){
+  factor_a_levels <- data %>% extract2(factor_a) %>% unique %>% length
+  factor_b_levels <- data %>% extract2(factor_b) %>% unique %>% length
+  
+  
+ first_col_means <- c(1:factor_a_levels) %>% map2_dbl(rep(1,factor_a_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>%
+                                                           extract2(response) %>% mean)
+second_col_means <- c(1:factor_b_levels) %>% map2_dbl(rep(2,factor_b_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>%
+                                                           extract2(response) %>% mean)
+  factor_level_means <- cbind(first_col_means,second_col_means)
+  
+  factor_a_means <- factor_level_means %>% apply(MARGIN = 1,mean)
+  factor_b_means <- factor_level_means %>% apply(MARGIN = 2,mean)
+  
+ a <- factor_level_means[1,] %>% length
+b <- factor_level_means[,1] %>% length 
+n <- data %>% filter(!!as.symbol(factor_a) == 1 & !!as.symbol(factor_b) == 1) %>% extract2(response) %>% length
+ overall_mean <- data %>% extract2(response) %>% mean
+
+ 
+ 
+  alpha_hat <- factor_a_means - overall_mean 
+  beta_hat <- factor_b_means - overall_mean 
+  
+  
+ first_col_gamma <- c(1:factor_a_levels) %>% map2_dbl(rep(1,factor_b_levels),~factor_level_means[.x,.y] - factor_a_means[.x] -factor_b_means[.y] + overall_mean)
+second_col_gamma <- c(1:factor_a_levels) %>% map2_dbl(rep(2,factor_b_levels),~factor_level_means[.x,.y] - factor_a_means[.x] -factor_b_means[.y] + overall_mean)
+gamma_hat <- cbind(first_col_gamma,second_col_gamma)
+ 
+ SSA <- n*b*(sum((alpha_hat)^2))
+SSB <- n*a*(sum((beta_hat)^2))
+SSAB <- n*sum(gamma_hat^2)
+
+
+ 
+filtered_observations <- c(rep(1,factor_a_levels),rep(2,factor_b_levels)) %>% 
+  map2(c(1:factor_a_levels,1:factor_b_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>% extract2(response))
+filtered_means <- c(factor_level_means[1,1],factor_level_means[1,2],factor_level_means[2,1],factor_level_means[2,2])
+SSE <- filtered_observations %>% map2(filtered_means,~sum((.x-.y)^2)) %>% unlist %>% sum
+
+
+SSTO <- SSA+SSB+SSAB+SSE
+
+df_a <- a-1
+df_b <- b-1
+df_ab <- (a-1)*(b-1)
+df_error <- a*b*(n-1)
+df_total <- (n*a*b)-1
+
+MSA <- SSA/df_a
+MSB <- SSB/df_b
+MSAB <- SSAB/df_ab
+MSE <- SSE/df_error
+
+anova_table <- data.frame("SS" = c(SSA,SSB,SSAB,SSE,SSTO),"df" = c(df_a,df_b,df_ab,df_error,df_total),"MS" = c(MSA,MSB,MSAB,MSE,NA))
+rownames(anova_table) <- c("Factor A","Factor B","AB Interactions","Error","Total")
+
+return(anova_table)
+}
+
+
+anova_table <- anova.table(EyeContact,"score","contact","gender")
+options(knitr.kable.NA = "")
+anova_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+test_stat <- anova_table["AB Interactions","MS"]/anova_table["Error","MS"]
+
+critical_value <- qf(0.95,1,16)
+p_value <- pf(test_stat,1,16,lower.tail = FALSE)
+
+F_test <- data.frame("F_Statistic" = test_stat,"F_Critical_Value" = critical_value,"P_Value" = p_value)
+F_test %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+```
+
+
+We need to test whether or not interaction effects are present at a 0.05 significance level. The null hypothesis is $H_0:$ all $\gamma_{ij} = 0$ and the alternative hypothesis is $H_a:$ not all $\gamma_{ij}$ equal to zero. The F-statistic is calculated in the table above. The decision rule is reject the null hypothesis if $F^* > 4.493999$ and fail to reject the null hypothesis if $F^* \leq 4.493999$. From the table above we can see that $0.2057613 \leq 	4.493999$ so we fail to reject the null hypothesis and conclude that all $\gamma_{ij} = 0$ at a 0.05 significance level.
+
+
+## Acknowledgments
+
+I'd like to thank the TA Yejiong Zhu for his explanation of how to find the expectation and variance of alpha hat.
+
+I'd also like to thank Cynthia Huang for her help with finding the variance of gamma hat.
+
+
+
+
+

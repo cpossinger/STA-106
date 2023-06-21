@@ -1,0 +1,151 @@
+---
+title: "Homework 2"
+author: "Camden Possinger"
+output: 
+      prettydoc::html_pretty:
+        theme: cayman
+        output: github
+---
+
+
+### Answers
+
+#### Part I
+
+1.
+
+$\sum_{j = 1}^{n_i} e_{ij} = \sum_{j = 1}^{n_i} (y_{ij} - \hat{y}_{i.}) = \sum_{j = 1}^{n_i} (y_{ij}-\bar{y}_{i.})$ <br />
+
+When the least squares estimator is minimized and replaces the parameter $\mu_{i}$ <br /> 
+
+$\sum_{j = 1}^{n_i} e_{ij} = n_{i}\bar{y}_{i.} - \sum_{j = 1}^{n_i} \bar{y}_{i.}$ <br />
+
+Since the summation is adding the factor level sample mean $n_{i}$ times it is essentially being multiplied by $n_{i}$ <br />
+
+$\sum_{j = 1}^{n_i} e_{ij} = n_{i}\bar{y}_{i.}- n_{i}\bar{y}_{i.} = 0$ <br />
+
+$\sum_{j = 1}^{n_i} e_{ij} = 0$
+
+---
+
+2. 
+
+$E(e_{ij}) =  E(y_{ij} - \hat{y}_{i.}) = E(y_{ij}-\bar{y}_{i.})$ <br />
+
+$E(e_{ij}) = E(y_{ij})-E(\bar{y}_{i.})$
+
+The expected value of a sample factor mean is the population factor mean $\mu_{i}$ 
+
+$E(e_{ij}) = E(y_{ij}) - \mu_{i}$
+
+The expected value of $y_{ij}$ is also $\mu_{i}$ so
+
+$E(e_{ij}) = \mu_{i} - \mu_{i} = 0$
+
+$E(e_{ij}) = 0$
+
+
+This makes sense intuitively since the sum of the residuals is 0 and so their mean should also be 0
+
+---
+
+
+$Var(e_{ij}) = \frac{\sum_{i = 1}^{r}\sum_{j = 1}^{n_i}(y_{ij}-\bar{y}_{i.})^{2}}{n_{T}-r}$
+
+$Var(e_{ij}) = \frac{(n_{T}-r)\sigma^{2}}{n_{T}-r}$
+
+$Var(e_{ij}) = \sigma^{2}$
+
+---
+
+#### Part II
+
+1.
+
+```{r message=FALSE, warning=FALSE}
+library(magrittr)
+library(ggplot2)
+# Data Prep
+data <- data.frame("Color" = c(rep("Blue",6),
+                               rep("Green",5),
+                               rep("Orange",6)),"Response_Rate" = c(27,26,30,27,34,29,34,28,25,30,29,31,24,27,29,28,33))
+data$Color %<>% as.factor 
+
+blue   <- c(27,26,30,27,34,29)
+green  <- c(34,28,25,30,29)
+orange <- c(31,24,27,29,28,33)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# Dotplot
+dotplot <- ggplot(data = data,aes(x = Color,y = Response_Rate,fill = Color)) + 
+  geom_dotplot(binaxis = "y",stackdir = "center",binpositions = "all",show.legend = FALSE)+
+  scale_fill_manual(values = c("Blue","Green","Orange")) + 
+  ylab("Response Rate")+ 
+  stat_summary(fun = mean,geom = "point",color = "red",show.legend = FALSE,size = 2)
+
+dotplot
+```
+
+From this dot plot of the given data it seems that the factor level means slightly differ from each other. For the most part the factor level means are very close together, but are not the same. The variance of the factor levels again seem approximately the same, but probably are not exactly equal.
+
+---
+
+2. 
+
+```{r message=FALSE, warning=FALSE}
+library(kableExtra)
+fitted_values   <- c(rep(mean(blue),6),rep(mean(green),5),rep(mean(orange),6))
+observed_colors <- c(blue,green,orange)
+residuals       <- observed_colors - fitted_values
+display_table   <- data.frame("Residuals" = residuals,"Fitted Values" = fitted_values) 
+
+display_table %>% 
+      kable() %>% 
+      kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+
+---
+
+3.
+```{r message=FALSE, warning=FALSE}
+observed_colors_mean <- mean(observed_colors)
+SSE                  <- sum((observed_colors-fitted_values)^2)
+SSTR                 <- sum((fitted_values-observed_colors_mean)^2)
+f_test_stat          <- (SSTR/(3-1)/(SSE/(17-3)))
+p_value              <- pf(f_test_stat,2,14,lower.tail = FALSE)
+decision_rule        <- qf(0.95,2,14)
+
+test_display_table   <- data.frame("SSE" = SSE,"SSTR" = SSTR,"F_Statistic" = f_test_stat,
+                                 "F_Statistic_Quantile" = decision_rule, "P_Value" = p_value)
+
+test_display_table %>% 
+           kable() %>% 
+           kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+<br />
+For the hypothesis test with $H_0:  \mu_{orange} = \mu_{blue} = \mu_{green}$ and $H_a:$ not all $\mu_{colors}$ are equal. With a significance level of $\alpha = 0.05$ our decision rule is:
+
+$F^* \leq F(1-\alpha;r-1;n_T-r)$ Fail to reject the null hypothesis and conclude $H_0$ <br />
+$F^* > F(1-\alpha;r-1;n_T-r)$ Reject the null hypothesis and conclude $H_a$  <br />
+
+For this specific test the obtained F-statistic is $\approx 0.0414$.<br />
+$0.0414 \leq 3.7389$ and the p-value is greater than the significance level $0.96 > 0.05$ so we fail to reject the null hypothesis and conclude that $H_0:  \mu_{orange} = \mu_{blue} = \mu_{green}$
+
+
+---
+
+4.
+<br />
+We found that the sample data provides insufficient evidence to conclude that the three different colors of paper affected the response rate. This study only sought to study the effects of those three specific colors on the questionnaire response rate. The executive's claim that the three studied colors do not have an effect on the response rate and that plain white paper also will not have an effect is unsubstantiated. We have no idea of the possible effects that white paper or other colored paper might have on the response rate. In conclusion we should conduct another study to see how the possible effects of white paper compared with other colored paper affects the response rate in order to properly test the executive's claim.
+
+
+
+---
+
+### Acknowledgements
+Special thanks to Andre Martinez, Ryan Truong, and Zac Cordoni for their help on the Part I Questions

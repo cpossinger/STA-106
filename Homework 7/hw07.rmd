@@ -1,0 +1,467 @@
+---
+title: "Homework 7"
+author: "Camden Possinger"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: hpstr
+    highlight: github
+    toc: True
+    toc_depth: 4
+---
+
+# Answers
+
+## Part 1
+
+### Interaction Plot 1
+
+For this plot there is not a significant interaction effect between Factor A and Factor B. There is possibly a significant Factor A effect because the lines differ vertically. There is possibly a Factor B effect since the lines are not horizontal. 
+
+### Interaction Plot 2
+
+For this plot there is not a significant interaction effect between Factor A and Factor B since the lines are about parallel. There is no Factor A effect since each line is superimposed on top of each other. There is possibly a Factor B effect since the lines are not horizontal. 
+
+
+### Interaction Plot 3
+
+For this plot there is a significant interaction effect because the lines are not parallel. There is not a Factor B effect because it seems that the mean line is horizontal for the two levels. It also seems that there is a Factor A effect since the mean of each line are not at the same level.  
+
+### Interaction Plot 4
+
+For this plot there is a significant interaction effect because the lines are not parallel. There is a Factor B effect since the mean line is not horizontal. There is not a Factor A effect since the mean for each line are not at the same level. 
+
+
+## Part II
+
+### 1
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(purrr)
+library(magrittr)
+library(kableExtra)
+
+aov_least_squares_estimates <- function(data,response_var,factor_a,factor_b){
+  factor_a_levels <- data %>% extract2(factor_a) %>% unique %>% length
+  factor_b_levels <- data %>% extract2(factor_b) %>% unique %>% length
+   
+  first_col_means <- c(1:factor_b_levels) %>% map2_dbl(rep(1,factor_a_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>% extract2(response_var) %>% mean)
+  
+  second_col_means <- c(1:factor_b_levels) %>% map2_dbl(rep(2,factor_a_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>% extract2(response_var) %>% mean)
+ 
+   third_col_means <- c(1:factor_b_levels) %>% map2_dbl(rep(3,factor_a_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>% extract2(response_var) %>% mean)
+ 
+   
+  factor_level_means <- cbind(first_col_means,second_col_means,third_col_means)
+  
+  factor_a_means <- factor_level_means %>% apply(MARGIN = 1,mean)
+  factor_b_means <- factor_level_means %>% apply(MARGIN = 2,mean)
+  
+  overall_mean <- data %>% extract2(response_var) %>% mean
+  
+  alpha_hat <- factor_a_means - overall_mean 
+  alpha_hat <- data.frame("Alpha_Hat" = alpha_hat)
+  beta_hat <- factor_b_means - overall_mean 
+  beta_hat <- data.frame("Beta_Hat" = beta_hat)
+  rownames(beta_hat) <- c(1:factor_b_levels)
+  
+first_col_gamma <- c(1:factor_a_levels) %>% map2_dbl(rep(1,factor_a_levels),~factor_level_means[.x,.y] - factor_a_means[.x] -factor_b_means[.y] + overall_mean)
+
+second_col_gamma <- c(1:factor_b_levels) %>% map2_dbl(rep(2,factor_b_levels),~factor_level_means[.x,.y] - factor_a_means[.x] -factor_b_means[.y] + overall_mean)
+
+third_col_gamma <- c(1:factor_b_levels) %>% map2_dbl(rep(3,factor_b_levels),~factor_level_means[.x,.y] - factor_a_means[.x] -factor_b_means[.y] + overall_mean)
+
+gamma_hat <- cbind(first_col_gamma,second_col_gamma,third_col_gamma)
+gamma_hat <- data.frame("Gamma_Hat" = gamma_hat)
+colnames(gamma_hat) <- c("Gamma_Hat_1","Gamma_Hat_2","Gamma_Hat_3")
+
+overall_mean <- data.frame("Mu" = overall_mean)
+
+
+return(list(overall_mean,alpha_hat,beta_hat,gamma_hat))
+  
+}
+
+service_time <- read.table("/home/cam/Documents/STA 106/Homework 7/ServiceTime.txt",header = TRUE )
+model_estimates <- aov_least_squares_estimates(service_time,"Time","Technician","Make")
+
+model_estimates[[1]] %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+model_estimates[[2]] %>% 
+   kable(row.names = TRUE) %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+model_estimates[[3]] %>% 
+   kable(row.names = TRUE) %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+model_estimates[[4]] %>% 
+   kable(row.names = TRUE) %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+```
+### 2.
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+
+response_values <- c(rep(1,3),rep(2,3),rep(3,3)) %>% map2(rep(c(1,2,3),3),~service_time %>%
+                                                            filter(Technician == .x,Make == .y) %>% extract2("Time")) 
+factor_means <- c(rep(1,3),rep(2,3),rep(3,3)) %>% map2(rep(c(1,2,3),3),~service_time %>%
+                                                          filter(Technician == .x,Make == .y) %>% extract2("Time") %>% mean) %>% unlist
+fitted_values <- c(1:9) %>% map2(c(rep(5,9)),~rep(factor_means[.x],.y)) 
+
+residuals <- response_values %>% map2(fitted_values,~.x - .y)
+
+service_time$Technician %<>% as.factor
+service_time$Make %<>% as.factor
+
+residual_plot <- ggplot()+
+  geom_point(data = service_time,aes(x = fitted_values %>% unlist, y = residuals %>% unlist,shape = Make ,color = Technician ))+scale_x_continuous(breaks = fitted_values %>% unlist %>% unique %>% round)+
+  xlab("Fitted Values")+ylab("Residuals") 
+  
+residual_plot <- residual_plot + map2(fitted_values,residuals,~geom_segment(data = data.frame(),aes(x = .x %>% unique,y = .y %>% min,xend = .x %>% unique,yend = .y %>% max),alpha = 0.25))
+
+
+residual_plot
+```
+
+In this plot of the residuals against the fitted values the extent of the scatter of the residuals around zero for each factor level is about the same. We can confirm the assumption of constant error variance for this ANOVA model.
+
+
+
+
+```{r message=FALSE, warning=FALSE}
+
+residuals %<>% unlist
+
+residuals_standard <- residuals -(residuals %>% mean) 
+residuals_standard <- residuals_standard/residuals %>% sd 
+
+
+qq_plot <- ggplot(mapping = aes(sample = residuals_standard)) + geom_qq()+geom_qq_line(col = 2)+labs(title = "Normal Q-Q Plot")+xlab("Theoretical Quantiles")+ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())
+
+qq_plot
+
+```
+
+In the normal QQ-plot above most of the points are on the QQ-line. There is some deviance from the line in the tails, but the deviance isn't large for most of the points, so we can assume the normality of the error terms is satisfied. 
+
+
+
+### 3. 
+
+```{r message=FALSE, warning=FALSE}
+
+service_time %<>% group_by(Technician,Make)
+
+interaction_plot <- ggplot(data = service_time,aes(Technician,Time,color = Make,group = Make)) + 
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  ylab("Mean Service Time")+
+  xlab("Factor A: Technician " )+
+  labs(color = "Factor B: Make")+
+  scale_x_discrete(labels = c("1","2","3"))+
+  scale_color_discrete(labels = c("1","2","3"))
+
+interaction_plot
+
+
+```
+
+In this interaction plot between the mean service time for each treatment combination of technicians and makes there is most likely an interaction effect between Factor A and Factor B, since none of the lines are parallel to each other. We can also see in this interaction plot that there probably isn't a Factor A effect or a Factor B effect since the mean line is mostly horizontal and the mean of each line is roughly at the same level. We need to conduct more rigorous tests to determine if this is actually the case, but from this initial plot we can assume that there is an interaction effect between Factor A and Factor B and there is little to no Factor A effect or Factor B effect.
+
+### 4.
+
+
+```{r message=FALSE, warning=FALSE}
+anova.table <- function(data,response,factor_a,factor_b){
+  factor_a_levels <- data %>% extract2(factor_a) %>% unique %>% length
+  factor_b_levels <- data %>% extract2(factor_b) %>% unique %>% length
+  
+  
+ first_col_means <- c(1:factor_b_levels) %>% map2_dbl(rep(1,factor_a_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>%
+                                                           extract2(response) %>% mean)
+second_col_means <- c(1:factor_b_levels) %>% map2_dbl(rep(2,factor_a_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>%
+                                                           extract2(response) %>% mean)
+third_col_means <- c(1:factor_b_levels) %>% map2_dbl(rep(3,factor_a_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>%
+                                                           extract2(response) %>% mean)
+ factor_level_means <- cbind(first_col_means,second_col_means,third_col_means)
+ 
+  factor_a_means <- factor_level_means %>% apply(MARGIN = 1,mean)
+  factor_b_means <- factor_level_means %>% apply(MARGIN = 2,mean)
+  
+   
+ a <- factor_level_means[1,] %>% length
+b <- factor_level_means[,1] %>% length 
+n <- data %>% filter(!!as.symbol(factor_a) == 1 & !!as.symbol(factor_b) == 2) %>% extract2(response) %>% length
+ overall_mean <- data %>% extract2(response) %>% mean
+
+ 
+ 
+  alpha_hat <- factor_a_means - overall_mean 
+  beta_hat <- factor_b_means - overall_mean 
+  
+  
+ first_col_gamma <- c(1:factor_a_levels) %>% map2_dbl(rep(1,factor_b_levels),~factor_level_means[.x,.y] - factor_a_means[.x] -factor_b_means[.y] + overall_mean)
+second_col_gamma <- c(1:factor_a_levels) %>% map2_dbl(rep(2,factor_b_levels),~factor_level_means[.x,.y] - factor_a_means[.x] -factor_b_means[.y] + overall_mean)
+third_col_gamma <- c(1:factor_a_levels) %>% map2_dbl(rep(3,factor_b_levels),~factor_level_means[.x,.y] - factor_a_means[.x] -factor_b_means[.y] + overall_mean)
+gamma_hat <- cbind(first_col_gamma,second_col_gamma,third_col_gamma)
+ 
+ SSA <- n*b*(sum((alpha_hat)^2))
+SSB <- n*a*(sum((beta_hat)^2))
+SSAB <- n*sum(gamma_hat^2)
+
+
+ 
+filtered_observations <- c(rep(1,factor_b_levels),rep(2,factor_b_levels),rep(3,factor_b_levels)) %>% 
+  map2(c(1:factor_b_levels,1:factor_b_levels,1:factor_b_levels),~data %>% filter(!!as.symbol(factor_a) == .x & !!as.symbol(factor_b) == .y) %>% extract2(response))
+filtered_means <- c(factor_level_means[1,1],factor_level_means[1,2],factor_level_means[1,3],factor_level_means[2,1],factor_level_means[2,2],factor_level_means[2,3],factor_level_means[3,1],factor_level_means[3,2],factor_level_means[3,3])
+SSE <- filtered_observations %>% map2(filtered_means,~sum((.x-.y)^2)) %>% unlist %>% sum
+
+
+SSTO <- SSA+SSB+SSAB+SSE
+
+df_a <- a-1
+df_b <- b-1
+df_ab <- (a-1)*(b-1)
+df_error <- a*b*(n-1)
+df_total <- (n*a*b)-1
+
+MSA <- SSA/df_a
+MSB <- SSB/df_b
+MSAB <- SSAB/df_ab
+MSE <- SSE/df_error
+
+anova_table <- data.frame("SS" = c(SSA,SSB,SSAB,SSE,SSTO),"df" = c(df_a,df_b,df_ab,df_error,df_total),"MS" = c(MSA,MSB,MSAB,MSE,NA))
+rownames(anova_table) <- c("Factor A","Factor B","AB Interactions","Error","Total")
+
+return(anova_table)
+}
+
+anova_table <- anova.table(service_time,"Time","Technician","Make")
+
+anova_table %>% 
+   kable(row.names = TRUE,caption = "ANOVA Table") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+test_stat_interact <- anova_table["AB Interactions","MS"]/anova_table["Error","MS"]
+
+critical_value_interact <- qf(0.95,4,36)
+p_value_interact <- pf(test_stat_interact,4,36,lower.tail = FALSE)
+
+F_test_interact <- data.frame("F_Statistic" = test_stat_interact,"F_Critical_Value" = critical_value_interact,"P_Value" = p_value_interact)
+
+F_test_interact %>% 
+   kable(caption = "Test for Interactions") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+test_stat_a <- anova_table["Factor A","MS"]/anova_table["Error","MS"]
+
+critical_value_a <- qf(0.95,2,36)
+p_value_a <- pf(test_stat_a,2,36,lower.tail = FALSE)
+
+F_test_a <- data.frame("F_Statistic" = test_stat_a,"F_Critical_Value" = critical_value_a,"P_Value" = p_value_a)
+
+F_test_a %>% 
+   kable(caption = "Test for Factor A Main Effects") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+test_stat_b <- anova_table["Factor B","MS"]/anova_table["Error","MS"]
+
+critical_value_b <- qf(0.95,2,36)
+p_value_b <- pf(test_stat_b,2,36,lower.tail = FALSE)
+
+F_test_b <- data.frame("F_Statistic" = test_stat_b,"F_Critical_Value" = critical_value_b,"P_Value" = p_value_b)
+
+F_test_b %>% 
+   kable(caption = "Test for Factor B Main Effects") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+```
+
+For the Test for Interactions the null hypothesis is $H_0:$ all $\gamma_{ij} = 0$ and alternative hypothesis $H_a:$ not all $\gamma_{ij} = 0$. The test statistic is computed in the table above and the decision rule is conclude the null hypothesis if $F^* \leq 2.633532$ and conclude the alternative hypothesis if $F^* \geq 2.633532$. Since $5.841487 \geq 2.633532$ we conclude the alternative hypothesis that not all $\gamma_{ij} = 0$ at a significance level of 0.05
+
+For the Test for Factor A Main Effects the null hypothesis is $H_0: \alpha_{1} = \alpha_{2} = . . . = \alpha_{a} = 0$ and alternative hypothesis $H_a:$ not all $\alpha_{i} = 0$. The test statistic is computed in the table above and the decision rule is conclude the null hypothesis if $F^* \leq 3.259446$ and conclude the alternative hypothesis if $F^* \geq 3.259446$. Since $0.2362741 \leq 3.29446$ we conclude the null hypothesis that $\alpha_{1} = \alpha_{2} = . . . = \alpha_{a} = 0$ at a significance level of 0.05
+
+For the Test for Factor B Main Effects the null hypothesis is $H_0: \beta_{1} = \beta_{2} = . . . = \beta_{b} = 0$ and alternative hypothesis $H_a:$ not all $\beta_{j} = 0$. The test statistic is computed in the table above and the decision rule is conclude the null hypothesis if $F^* \leq 3.259446$ and conclude the alternative hypothesis if $F^* \geq 3.259446$. Since $0.2362741 \leq 3.29446$ we conclude the null hypothesis that $\beta_{1} = \beta_{2} = . . . = \beta_{b} = 0$ at a significance level of 0.05
+
+### 5.
+
+#### a.
+
+```{r message=FALSE, warning=FALSE}
+
+treatment_mean_ci <- function(data,factor_a,factor_b,response,MSE,i,j,alpha){
+  est_treat_mean <- data %>% filter(!!as.symbol(factor_a) == i,!!as.symbol(factor_b) == j) %>% extract2(response) %>% mean
+  n <- data %>% filter(!!as.symbol(factor_a) == i,!!as.symbol(factor_b) == j) %>% extract2(response) %>% length
+  a <- data %>% extract2(factor_a) %>% unique %>% length
+  b <- data %>% extract2(factor_b) %>% unique %>% length
+  s_2 <-  MSE/n
+  s <- s_2 %>% sqrt
+  B <- qt(1-(alpha/2),(n-1)*a*b)
+  lower_bound <- est_treat_mean - (B*s)
+  upper_bound <- est_treat_mean + (B*s)
+  return(c(lower_bound,upper_bound))
+}
+
+ci_mu_11 <- treatment_mean_ci(service_time,"Technician","Make","Time",anova_table["Error","MS"],1,1,0.01)
+
+ci_mu_11 <- data.frame("Lower Bound" = ci_mu_11[1],"Upper Bound" = ci_mu_11[2])
+
+ci_mu_11 %>% 
+   kable(caption = "99% Confidence Interval for mu_11") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+
+```
+My interpretation for this confidence interval is that we are 99% confident that this confidence interval has captured the true population mean time for technician 1 to fix a disk drive of make 1. Roughly on average technician 1 can fix a disk drive of make 1 in an hour. 
+
+#### b.
+
+```{r message=FALSE, warning=FALSE}
+library(stringr)
+
+ 
+
+
+all_pairwise_ci <- function(data,response,factor_a,factor_b,alpha,MSE,method){
+  a <- data %>% extract2(factor_a) %>% unique %>% length
+  b <- data %>% extract2(factor_b) %>% unique %>% length
+  n <- data %>% filter(!!as.symbol(factor_a) == 1,!!as.symbol(factor_b) == 1) %>% extract2(response) %>% length
+  i <- 1:a %>% map(~rep(.x,a)) %>% unlist
+  j <- rep(c(1,1,2),b) 
+  k <- rep(c(2,3,3),b)
+  
+ 
+all_pairwise_list <- list(i,j,k)
+
+D_hat <- all_pairwise_list %>% pmap(~data %>% filter(!!as.symbol(factor_a) == ..1,!!as.symbol(factor_b) == ..2) %>% extract2(response) %>% mean - data %>% filter(!!as.symbol(factor_a) == ..1,!!as.symbol(factor_b) == ..3) %>% extract2(response) %>% mean)
+
+s_2 <- (2*MSE)/n
+s <- s_2 %>% sqrt
+
+ Bonferroni.g <- 1
+  # if a digit is detected extract the digit and extract the remaining word character for later comparison
+  if(method %>% str_detect("\\d+")){
+  # Use a regular expression to extract all digits
+  Bonferroni.g <- method %>% str_extract("\\d+") %>% as.integer
+  # Use a regular expression to extract all characters
+  method %<>% str_extract("[:alpha:]+") 
+  }
+  # If the number of Bonferroni tests is 0 return error message
+  if(Bonferroni.g == 0){
+    return("Number of Bonferroni Tests is 0")
+  }
+
+ 
+if(method == "Tukey"){
+  Tukey_mult <-  qtukey(1-alpha,a*b,(n-1)*a*b)/sqrt(2)
+   ci_s <- D_hat %>% map(~c(.x - (Tukey_mult * s),.x + (Tukey_mult * s)))
+}
+
+else if(method == "Bonferroni"){
+  B <- qt(1-(alpha/(2*Bonferroni.g)),(n-1)*a*b)
+  ci_s <- D_hat %>% map(~c(.x - (B * s),.x + (B * s)))
+}
+
+else{
+  
+  return("Invalid Method")
+}
+
+ 
+return(ci_s)
+ 
+}
+
+compare_methods <- data.frame("Tukey" = qtukey(1-0.05,9,36)/sqrt(2),"Bonferroni" = qt(1-(0.05/18),36))
+
+compare_methods %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+interval_lst <- all_pairwise_ci(service_time,"Time","Technician","Make",0.05,anova_table["Error","MS"],"Bonferroni 9")
+
+
+interval_tribble <- interval_lst %>% map(~tribble(~lower_bound,~upper_bound,.x[1],.x[2]))
+interval_tibble <- rbind(interval_tribble[[1]],interval_tribble[[2]],interval_tribble[[3]],interval_tribble[[4]],interval_tribble[[5]],interval_tribble[[6]],interval_tribble[[7]],interval_tribble[[8]],interval_tribble[[9]])
+interval_tibble %<>% mutate("Pairwise Comparisons" = c("mu11 - mu12","mu11 - m13","mu12 - mu13","mu21 - mu22","mu21 - mu23","mu22 - mu23","mu31 - mu32","mu31 - mu33","mu32 - mu33"))
+interval_tibble %<>% select(`Pairwise Comparisons`,Lower_Bound = lower_bound,Upper_Bound = upper_bound) 
+
+interval_tibble %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+```
+
+In order to identify the make that takes each technician the shortest amount of time to repair we need to find the confidence interval that contains mostly negative values and compare that with the other makes. I used the Bonferroni method with $g = 9$ since the Bonferroni multiplier was the smallest, which will result in the shortest confidence intervals with a family confidence coefficient of 95%
+
+For Technician 1 the first interval suggests that on average the time it takes to repair Make 1 is greater than Make 2. The second interval suggests that there isn't a big difference between the average time it takes to repair Make 1 or Make 3. The third interval suggests that on average it takes less time to repair Make 2 than Make 3. Since the average time to repair Make 2 is less than Make 1 and Make 3 and Make 1 and Make 3 are roughly equal in terms of average time we can conclude that Technician 1 can on average repair Make 2 the fastest. 
+
+For Technician 2 the first interval suggests that on average Make 1 takes less repair time than Make 2. The second interval suggests that on average Make 1 takes less repair time than Make 3. The third interval suggests that on average Make 2 takes more time to repair than Make 3. We can conclude that for Technician 2 on average Make 1 takes the least amount of repair time.
+
+For Technician 3 the first interval suggests that on average Make 1 and Make 2 take about the same amount of time to repair. The second interval suggests that on average Make 1 takes more time to repair than Make 3. The third interval suggests that on average Make 2 takes more time to repair than Make 3. We can conclude that for Technician 3 on average can repair Make 3 the fastest.
+
+
+#### c.
+```{r message=FALSE, warning=FALSE}
+
+old_allocation_lower_bound <- model_estimates[[1]]*90 - qt(1-(0.01/2),36) * sqrt(anova_table["Error","MS"]*90^2 / 45)
+old_allocation_upper_bound <- model_estimates[[1]]*90 + qt(1-(0.01/2),36) * sqrt(anova_table["Error","MS"]*90^2 / 45)
+old_allocation_ci <- c(old_allocation_lower_bound,old_allocation_upper_bound) %>% unlist %>% unname
+
+old_allocation_ci_df <- data.frame("Lower Bound" = old_allocation_ci[1],"Upper Bound" = old_allocation_ci[2])
+
+old_allocation_ci_df %>% 
+   kable(caption = "Old Allocation 99% Confidence Interval") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+Tech_1_best <- service_time %>% filter(Technician == 1,Make == 2) %>% extract2("Time") %>% mean
+Tech_2_best <- service_time %>% filter(Technician == 2,Make == 1) %>% extract2("Time") %>% mean
+Tech_3_best <- service_time %>% filter(Technician == 3,Make == 3) %>% extract2("Time") %>% mean
+new_allocation_mean_est <- (Tech_1_best*30) + (Tech_2_best*30) + (Tech_3_best * 30)
+
+new_allocation_lower_bound <- new_allocation_mean_est - qt(1-(0.01/2),36) * sqrt(anova_table["Error","MS"]*30^2*3 / 5)
+new_allocation_upper_bound <- new_allocation_mean_est + qt(1-(0.01/2),36) * sqrt(anova_table["Error","MS"]*30^2*3 / 5)
+new_allocation_ci <- c(new_allocation_lower_bound,new_allocation_upper_bound) %>% unlist %>% unname
+
+new_allocation_ci_df <- data.frame("Lower Bound" = new_allocation_ci[1],"Upper Bound" = new_allocation_ci[2])
+
+new_allocation_ci_df %>% 
+   kable(caption = "New Allocation 99% Confidence Interval") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+```
+
+
+Based on the results of part b. I would assign Technician 1 to repair all 30 disk drives of Make 2, Technician 2 to repair all 30 disk drives of Make 1, and Technician 3 to repair 30 disk drives of Make 3 so that each Technician can focus on the Make that they can repair in the least amount of time. 
+
+Looking at the two intervals of the old allocation and new allocation we can see that the values in the new allocation interval are significantly less than the values in the old allocation interval. There is a little overlap between the upper bound of the new allocation interval and the lower bound of the old allocation interval, but this overlap is small. Moving forward unless things change I would recommend that the service center use the new allocation in order to reduce repair time.  
+
+
+
+
+
+
+
+
+
+
+
+

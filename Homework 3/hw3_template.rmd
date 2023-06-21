@@ -1,0 +1,310 @@
+---
+title: "Homework 3"
+author: "Camden Possinger"
+output:
+      prettydoc::html_pretty:
+        theme: architect
+        highlith: github
+      
+---
+### Answers
+
+#### Part I
+
+1. 
+
+<center> $E(\sum_{i = 1}^{r}\sum_{j = 1}^{n_{i}}(Y_{ij}-\bar{Y}_{i.})^{2})$ 
+
+To start let's simplify the first summation.
+
+$\sum_{j = 1}^{n_i}(Y_{ij}^{2} + \bar{Y}_{i.}^{2}-2Y_{ij}\bar{Y}_{i.})$ 
+
+using the summation property 
+
+$\sum_{i = i_{0}}^{n}(a_{i} \pm b_{i}) = \sum_{i = i_{0}}^{n} a_{i} \pm \sum_{i = i_{0}}^{n} b_{i}$   
+
+we can simplify further
+
+$\sum_{j = 1}^{n_{i}}Y_{ij}^{2} + \sum_{j = 1}^{n_{i}} \bar{Y}_{i.}^2 - \sum_{j = 1}^{n_{i}} 2Y_{ij}\bar{Y}_{i.}$ 
+
+Some of the terms in these summations are not affected by the summation so we can simplify: 
+
+$\sum_{j = 1}^{n_{i}}Y_{ij}^{2} + n_{i}\bar{Y}_{i.}^{2} - 2\bar{Y}_{i.} \sum_{j = 1}^{n_{i}}Y_{ij}$ 
+
+we can further simplify the third term 
+
+$\sum_{j = 1}^{n_{i}}Y_{ij}^{2} + n_{i}\bar{Y}_{i.}^{2} - 2n_{i}\bar{Y}_{i.}^{2}$ 
+
+Now we can subtract the $n_{i}\bar{Y}_{i.}^{2}$ terms.
+
+$\sum_{j = 1}^{n_{i}}Y_{ij}^{2} - n_{i}\bar{Y}_{i.}^{2}$ 
+
+At this point we can take the expected value of the expression above since finding the                                                             expected value is a linear operation.
+
+$E(\sum_{j = 1}^{n_{i}}Y_{ij}^{2}) - n_{i}E(\bar{Y}_{i.}^{2})$ 
+
+We can simplify the first term a bit to put the expectation inside the summation.
+
+$\sum_{j = 1}^{n_{i}}E(Y_{ij}^{2}) - n_{i}E(\bar{Y}_{i.}^{2})$
+
+Now in order to find $E(Y_{ij})$ we need to find its distribution.
+
+We know that $Y_{ij} \sim N(M_{i},\sigma^{2})$ so $Var(Y_{ij}) + E(Y_{ij}^{2}) = \sigma^{2} + M_{i}^{2}$
+
+Now that we have the distribution for $Y_{ij}$ we need to find the distribution of $\bar{Y}_{i.}$
+
+$\bar{Y}_{i.} \sim N(M_{i},\frac{\sigma^{2}}{n_i})$
+
+We can calculate the variance by solving the following:
+
+$Var(\bar{Y}_{i.}) = \frac{1}{n_{i}^{2}}Var(\sum_{j = 1}^{n_{i}} Y_{ij})$ where $\bar{Y}_{i.} = \frac{\sum_{j = 1}^{n_{i}} Y_{ij}}{n_{i}}$
+
+Then because the $Y_{ij}$'s are independent we can rearrange the summation and Var() to obtain
+
+$Var(\bar{Y}_{i.}) = \frac{1}{n_{i}^{2}}\sum_{j = 1}^{n_{i}}Var(Y_{ij})$ 
+
+This works out nicely to: 
+
+$Var(\bar{Y}_{i.}) = \frac{1}{n_{i}^{2}}\sum_{j = 1}^{n_{i}}\sigma^{2})$ which is 
+
+$Var(\bar{Y}_{i.}) = \frac{\sigma^{2}}{n_{i}}$ So to recap 
+
+$Var(\bar{Y}_{i.}) + E(\bar{Y}_{i.}^{2}) = \frac{\sigma^{2}}{n_{i}} + M_{i}^{2}$ 
+
+Now we can substitute the variance plus the distribution mean with the expected value.
+
+$\sum_{j = 1}^{n_{i}} (\sigma^{2} + M_{i}^{2})- n_{i}(\frac{\sigma^{2}}{n_{i}} + M_{i}^{2})$ we can simplify the summation term 
+
+$n_{i}\sigma^{2} + n_{i}M_{i}^{2} - \sigma^{2} - n_{i}M_{i}^{2}$ The $M_{i}^{2}$ terms cancel leaving 
+
+$(n_{i}-1)\sigma^{2}$
+
+We can't forget the summation of the factor levels i = 1  to r so applying that summation we finally have:
+
+$E(SSE) = (n_{T}-r)\sigma^{2}$ <center>
+
+2. 
+
+<center> $E(\sum_{i = 1}^{r}n_{i}(\bar{Y}_{i.}-\bar{Y}_{..})^{2})$ = $E(\sum_{i = 1}^{r}n_{i}(\bar{Y}_{i.}^{2}+\bar{Y}_{..}^{2}-2(\bar{Y}_{i.})(\bar{Y}_{..})))$ 
+
+Using summation property in the first question we can simplify.
+
+$E(\sum_{i = 1}^{r}n_{i}(\bar{Y}_{i.}^{2})+\sum_{i = 1}^{r} n_{i}(\bar{Y}_{..}^{2})-2\sum_{i = 1}^{r} n_{i}(\bar{Y}_{i.}^{2})(\bar{Y}_{..}^{2}))$
+
+The last term in the summation can be simplified further.
+
+$E(\sum_{i = 1}^{r}n_{i}(\bar{Y}_{i.}^{2})+\sum_{i = 1}^{r} n_{i}(\bar{Y}_{..}^{2})-2(n_{T})(\bar{Y}_{..}^{2}))$ 
+
+Now we can move the expected value into the summation since expectation is a linear operation.
+
+$\sum_{i = 1}^{r}n_{i}E(\bar{Y}_{i.}^{2}) + E(\bar{Y}_{..}^{2})\sum_{i = 1}^{r}n_{i} - 2n_{T}E(\bar{Y}_{..}^{2})$ 
+
+We already know the expectation of $\bar{Y}_{i.}^{2}$ from the previous derivation so we need to find the $Var(\bar{Y}_{..})$ and $E(\bar{Y}_{..}^{2})$
+
+$E(\bar{Y}_{..}) = E(\sum_{i = 1}^{r}\frac{n_{i}}{n_{T}}\bar{Y}_{i.}) = \sum_{i = 1}^{r}\frac{n_{i}}{n_{T}}E(\bar{Y}_{i.})$
+
+We know that $E(\bar{Y}_{i.}) = M_{i}$
+
+$\frac{1}{n_{T}}\sum_{i = 1}^{r}n_{i}M_{i} = M.$ 
+
+Now let's find the variance.
+
+$Var(\bar{Y}_{..}) = Var(\sum_{i = 1}^{r} \frac{n_{i}}{n_{t}} \bar{y}_{i.})$ which can be simplified to 
+
+$\frac{1}{n_{T}^{2}}\sum_{i = 1}^{r} n_{i}^{2}Var(\bar{Y}_{i.}) = \frac{1}{n_{T}^{2}}\sum_{i = 1}^{r} n_{i}^{2}\frac{\sigma^{2}}{n_{i}})$
+
+$\frac{\sigma^{2}}{n_{T}^{2}} \sum_{i = 1}^{r} n_{i} = \frac{\sigma^{2}}{n_{T}^{2}} \cdot n_{T} = \frac{\sigma^{2}}{n_{T}}$
+
+So $\bar{Y}_{..}\sim N(M.,\frac{\sigma^{2}}{n_{T}})$ and $E(\bar{Y}_{..}^{2}) = \frac{\sigma^{2}}{n_{T}} + M.^{2}$ 
+
+Now that we have this distribution we can substitute it in.
+
+$\sum_{i = 1}^{r} n_{i} (\frac{\sigma^{2}}{n_{i}}+M_{i}^{2}) +  (\frac{\sigma^{2}}{n_{T}}+M.^{2})\sum_{i = 1}^{r} n_{i} - 2n_{T}(\frac{\sigma^{2}}{n_{T}}+M.^{2})$
+
+$\sum_{i = 1}^{r} \sigma^{2} + \sum_{i = 1}^{r} n_{i} M_{i}^{2} + \sigma^{2} + \sum_{i = 1}^{r}n_{i}M.^{2} -2\sigma-2\sum_{i = 1}^{r}n_{i}M.^{2}$ 
+
+This long expression can be simplified to: 
+
+$r\sigma^{2} +\sum_{i = 1}^{r}n_{i} M_{i}^{2} - \sigma^{2} - \sum_{i = 1}^{r}n_{i}M.^{2}$ 
+
+Which can be further simplified to:
+
+$\sigma^{2}(r-1) + \sum_{i = 1}^{r} n_{i}(M_{i}^{2}-M.^{2})$ 
+
+We're close but we need to check to see if we can move the squares outside the parenthesis.
+
+$\sum_{i = 1}^{r} n_{i}(M_{i}-M.)^{2} = \sum_{i = 1}^{r}(n_{i}M_{i}^{2} + n_{i}M.^{2}-2n_{i}M_{i}M.)$
+
+$\sum_{i = 1}^{r}(n_{i}M_{i}^{2} + n_{i}M.^{2}) - 2M.\sum_{i = 1}^{r}n_{i}M_{i} = \sum_{i = 1}^{r}(n_{i}M_{i}^{2} + n_{i}M.^{2}) -2n_{T}M.^{2}$
+
+$\sum_{i = 1}^{r}(n_{i}M_{i}^{2} + n_{i}M.^{2}) -2\sum_{i = 1}^{r}n_{i}M.^{2} = \sum_{i = 1}^{r}(n_{i}M_{i}^{2} + n_{i}M.^{2}-2n_{i}M.^{2}) =  \sum_{i = 1}^{r} n_{i}(M_{i}^{2}-M.^{2})$ 
+
+So we can say:
+
+$\sum_{i = 1}^{r} n_{i}(M_{i}^{2}-M.^{2}) = \sum_{i = 1}^{r} n_{i}(M_{i}-M.)^{2}$ 
+
+Now we have our final answer:
+
+$E(\sum_{i = 1}^{r}n_{i}(\bar{Y}_{i.}-\bar{Y}_{..})^{2}) = \sigma^{2}(r-1) + \sum_{i = 1}^{r} n_{i}(M_{i}-M.)^{2}$ <center>
+
+
+
+#### Part II
+
+1. 
+
+```{r message=FALSE, warning=FALSE}
+library(magrittr)
+library(ggplot2)
+
+mydata = read.table("ColorStudy.txt", header=T)
+
+dotplot <- ggplot(data = mydata,aes(x = Color,y = ResponseRate,fill = Color)) + 
+   geom_dotplot(binaxis = "y",stackdir = "center",binpositions = "all",show.legend = FALSE)+
+   scale_fill_manual(values = c("Blue","Green","Orange","White")) + 
+   ylab("ResponseRate")+ 
+   stat_summary(fun = mean,geom = "point",color = "red",show.legend = FALSE,size = 2)
+
+dotplot
+```
+
+Here we can see that that the means seem to be different for each factor level. We can also see that the variances vary from being very small for the blue and green factor levels and larger for the orange and white factor levels. It seems that the green factor level also has a potential outlier compared to the rest of the data. We need to conduct a hypothesis test in order to test if the factor means are the same or different.
+
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(kableExtra)
+
+blue <- mydata %>% filter(Color == "blue") %>% extract2("ResponseRate") 
+green <- mydata %>% filter(Color == "green") %>% extract2("ResponseRate") 
+orange <- mydata %>% filter(Color == "orange") %>% extract2("ResponseRate")
+white <- mydata %>% filter(Color == "white") %>% extract2("ResponseRate")
+
+fitted_values   <- c(rep(mean(blue),14),rep(mean(green),14),rep(mean(orange),15),rep(mean(white),14))
+observed_colors <- c(blue,green,orange,white)
+
+observed_colors_mean <- mean(observed_colors)
+SSE                  <- sum((observed_colors-fitted_values)^2)
+SSTR                 <- sum((fitted_values-observed_colors_mean)^2)
+f_test_stat          <- (SSTR/(4-1)/(SSE/(57-4)))
+p_value              <- pf(f_test_stat,3,53,lower.tail = FALSE)
+decision_rule        <- qf(0.95,3,53)
+
+test_display_table   <- data.frame("SSE" = SSE,"SSTR" = SSTR,"F_Statistic" = f_test_stat,
+                                   "F_Statistic_Quantile" = decision_rule, "P_Value" = p_value)
+
+test_display_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+Based on hypothesis test above, the F-statistic is larger than the decision rule and the P-value is less than 0.05 so we can reject the null hypothesis where $H_0: \mu_{white} = \mu_{blue} = \mu_{orange} = \mu_{green}$ and conclude the alternative hypothesis where $H_a: \mu_{white} \neq \mu_{blue} \neq \mu_{orange} \neq \mu_{green}$ Interpreting this hypothesis test we can conclude that there is some factor level mean effect of paper color on the questionnaire response rate.
+
+2.
+```{r message=FALSE, warning=FALSE}
+D_hat <- mean(white) - mean(orange)
+MSE <- SSE/(57-4)
+n_white <- mydata %>% filter(Color == "white") %>% select(Color) %>% nrow
+n_orange <- mydata %>% filter(Color == "orange") %>% select(Color) %>% nrow
+estm_var_D_hat <-MSE*((1/n_white)+(1/n_orange))
+sd_D_hat <- sqrt(estm_var_D_hat)
+t_stat <- D_hat/sd_D_hat
+p_value <- pt(t_stat,53)
+#if absolute value of t* is =< conclude H0 otherwise Ha
+decision_rule <- qt(1-(0.05/2),53)
+
+test_display_table   <- data.frame("D_hat" = D_hat,"Estimated_Variance_of_D_Hat" = estm_var_D_hat,"Standard_Deviation_of_D_Hat" = sd_D_hat,
+                                   "T_Statistic_Quantile" = decision_rule,T_Statistic = t_stat, "P_Value" = p_value)
+
+test_display_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+
+Based on the hypothesis test above, the absolute value of the T-Statistic is larger than the decision rule and the P-value is less than 0.05 so we can reject the null hypothesis $H_0: \mu_{white} = \mu_{orange}$ and conclude $H_a: \mu_{white} \neq \mu_{orange}$ The interpretation of this test is that the mean factor effect of orange colored paper is not the same as white colored paper on the response rate. More analysis is needed to determine the magnitude and whether these mean factor effects are positive or negative or have no effect.
+
+
+3.
+```{r message=FALSE, warning=FALSE}
+library(ggpubr)
+library(purrr)
+comparisons <- list(c("white","blue"),c("white","green"),c("white","orange"),
+                    c("blue","green"),c("blue","orange"),c("green","orange"))
+
+
+mean1 = c(mean(white),mean(white),mean(white),
+          mean(blue),mean(blue),mean(green))
+mean2 = c(mean(blue),mean(green),mean(orange),
+          mean(green),mean(orange),mean(orange))
+
+
+D_hat_calculation <- function(mean1,mean2){
+   D_hat <- mean1 - mean2
+}
+
+D_hat <- map2_dbl(mean1,mean2,D_hat_calculation)
+
+n1 <- c(white %>% length,white %>% length,white %>% 
+           length,blue %>% length,blue %>% length,green %>% length)
+n2 <- c(blue %>% length,green %>% length,orange %>% 
+           length,green %>% length,orange %>% length,orange %>% length)
+
+estimated_sd_squared <- function(n1,n2){
+   s_squared <- MSE*((1/n1)+(1/n2))
+} 
+
+est_sd_squared <- map2_dbl(n1,n2,estimated_sd_squared)
+est_sd <- est_sd_squared %>% sqrt
+
+test_stats_pairwise <- D_hat/est_sd
+
+tukey_p_values <- 1-ptukey(abs(test_stats_pairwise),4,53)
+
+T_family_stat <- qtukey(0.95,4,57-4)/sqrt(2) 
+
+plot_table <- tibble("group1" = c("white","white","white","blue","blue","green"),"group2" = c("blue","green","orange","green","orange","orange"),p_values = tukey_p_values %>% round(4))
+
+output_table <- data.frame("Pairwise_Combinations" = c(("White,Blue"),("White,Green"),("White,Orange"),("Blue,Green"),("Blue,Orange"),("Green,Orange")),  
+                           "D_hat" = D_hat,"Estimated_Standard_Deviation" = est_sd,"Pairwise_Test_Statistics" = test_stats_pairwise,"Family_T_Statistic" = c(rep(T_family_stat,6)),"P_Values" = tukey_p_values)
+
+output_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+colormap <- c("blue","green","orange","white")
+ggdotplot(mydata,"Color","ResponseRate",fill = "Color") + stat_pvalue_manual(plot_table,y.position = 35,step.increase = 0.2,label = "p_values")+scale_fill_manual(values = colormap)+theme(legend.position = "none")+stat_summary(fun = mean,geom = "point",color = "red",size = 2)
+```
+
+There are $4 \choose 2$$= 6$ pairwise comparisons of the four factor level means. From the simultaneous hypothesis tests above we can see that for the hypothesis test $H_{0}: \mu_{i} = \mu_{i*}$ and $H_{a}: \mu_{i} \neq \mu_{i*}$ that for all but for $\mu_{blue},\mu_{orange}$ we can reject the null hypothesis because the test statistic is larger than the family decision rule and the P-value is less than 0.05. The paired comparison plot above helps visualize the relationships between the pairwise relationships with their corresponding P-values. The interpretation of these hypothesis tests is that all of the factor level means have a different effect on the response rate compared to their pairwise companion except for blue colored paper vs. orange colored paper.  
+
+4.
+```{r message=FALSE, warning=FALSE}
+L_hat <- mean(white) - ((mean(white)+mean(blue)+mean(green)+mean(orange))/4)
+ci_s <- ((3/4)^2)/14 + (-1/4)^2/14 + (-1/4)^2/14 + (-1/4)^2/15
+var_L_hat <- MSE * ci_s
+sd_L_hat <- sqrt(var_L_hat)
+t_stat <- L_hat/sd_L_hat
+p_value <- pt(t_stat,53) 
+decision_rule <- qt(0.95,53)
+
+
+test_display_table   <- data.frame("L_hat" = L_hat,"Estimated_Variance_of_L Hat" = var_L_hat,"Estimated_Standard_Deviation_of_L_Hat" = sd_L_hat,
+                                   "T_Statistic_Quantile" = decision_rule, "P_Value" = p_value)
+
+test_display_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+
+```
+Based on the hypothesis test above where $L = \mu_{white} - \frac{\mu_{white}+\mu_{blue}+\mu_{green}+\mu_{orange}}{4}$, $H_0: L = 0$ and $H_a: L\neq0$ we can see that the absolute value of the T-statistic is larger than the decision rule and the P-value is smaller than 0.05. We reject the null hypothesis and conclude that $L \neq 0$. The interpretation of this hypothesis test is the mean response rate for white colored paper differs from the average response rate for all four colors of paper.
+
+
+
+
+### Acknowledgements
+I'd like to thank Cynthia Huang for helping with the derivation for Part 1 Question 2

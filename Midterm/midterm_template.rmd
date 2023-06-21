@@ -1,0 +1,791 @@
+---
+title: "Midterm"
+author: "Camden Possinger"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    toc: True
+    toc_depth: 6
+runtime: shiny
+---
+## Answers
+
+I'm OK with my report being shared
+
+### Part I True or False
+
+#### 1. 
+
+This conclusion is false, the treatments are not assigned randomly, so this is an observational study. Since the treatments were not assigned randomly we don't know if the surgical procedure is the only factor that affects the success rate. Maybe those who were in a stable condition chose surgical procedure A and those who were not as stable chose surgical procedure B. In this observational study there could possibly be many confounding factors that influence the success rate, so it is unreasonable to conclude that procedure A is a better procedure for treating a disease. We can detect that there might be an association between the surgical procedures and the success rate, but we cannot conclude causation without a randomized study.
+
+#### 2. 
+
+This is true since the confidence interval only contains negative numbers. The confidence interval based on the Tukey procedure is calculated using $\hat{D} = \mu_{1} - \mu_{2}$ we then add and subtract the Tukey multiplier multiplied by the standard deviation of $\hat{D}$. The only way that the confidence interval could solely contain negative numbers is if $\mu_{1} < \mu_{2}$.
+
+#### 3.
+
+This is false because the residuals are not random independent variables like the error terms. The residuals are the difference between the observed values and the fitted values from the data. An important property of the residuals is that they sum to zero, which means they have to be correlated with either other residual terms or the factor variable in the model, so they are not independent. 
+
+
+
+### Part II
+
+#### 1. 
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(purrr)
+library(magrittr)
+library(ggplot2)
+library(shiny)
+library(plotly)
+library(shinydashboard)
+library(rlist)
+library(kableExtra)
+library(stringr)
+```
+
+```{r message=TRUE, warning=FALSE}
+
+
+contrast.CI <- function(coefficients,alpha,method,Y,mylevel,responselevel,level.names){
+ factor_means <- level.names %>% map(~mydata %>% filter(!!as.symbol(mylevel) == .x) %>% extract2(responselevel) %>% mean) 
+ r <- Y %>% extract2(mylevel) %>% unique %>% length
+ n_T <- Y %>% extract2(mylevel) %>% length
+ L_hat <- factor_means %>% map2(coefficients,~.y * .x) %>% unlist %>%  sum
+ n_is <- level.names %>% map(~Y %>% filter(!!as.symbol(mylevel) == .x) %>% extract2(mylevel) %>% length)
+ level.observations <- level.names %>% lapply(function(x){mydata %>% filter(!!as.symbol(mylevel) == x) %>% extract2(responselevel)})
+  level.means <- level.names %>% lapply(function(x){mydata %>% filter(!!as.symbol(mylevel) == x) %>% extract2(responselevel) %>% mean})
+  SSE <- map2(level.observations,level.means,~(.x-.y)^2) %>% unlist %>% sum
+  MSE <- SSE/(n_T-r)
+  c_is_divided_by_n_i <- coefficients %>% map2_dbl(n_is,~(.x)^2/.y) %>% sum
+  s_2 <- MSE * c_is_divided_by_n_i
+  
+  Bonferroni.g <- 1
+  # if a digit is detected extract the digit and extract the remaining word character for later comparison
+  if(method %>% str_detect("\\d+")){
+  # Use a regular expression to extract all digits
+  Bonferroni.g <- method %>% str_extract("\\d+") %>% as.integer
+  # Use a regular expression to extract all characters
+  method %<>% str_extract("[:alpha:]+") 
+  }
+  # If the number of Bonferroni tests is 0 return error message
+  if(Bonferroni.g == 0){
+    return(message("Number of Bonferroni Tests is 0"))
+  }
+  
+  if(method == "Bonferroni"){
+  lower_bound <- L_hat - (qt(1-(alpha/(2*Bonferroni.g)),n_T-r) * sqrt(s_2))
+  upper_bound <- L_hat + (qt(1-(alpha/2*Bonferroni.g),n_T-r) * sqrt(s_2))
+  }
+  else if(method == "Scheffe"){
+   lower_bound <- L_hat - (sqrt((r-1)*(qf(1-alpha,r-1,n_T - r))) * sqrt(s_2))
+  upper_bound <- L_hat +  (sqrt((r-1)*(qf(1-alpha,r-1,n_T - r))) * sqrt(s_2)) 
+  }
+  else if(method == "Tukey"){
+   lower_bound <- L_hat - (qtukey(1-alpha,r,n_T-r)/sqrt(2) * sqrt(s_2))
+  upper_bound <- L_hat + (qtukey(1-alpha,r,n_T-r)/sqrt(2) * sqrt(s_2)) 
+  }
+  else{
+    return(message("Invalid Method"))
+  }
+  
+  return(c(lower_bound,upper_bound))
+}
+```
+
+This function constructs the confidence interval at alpha level for a contrast. It takes the contrast coefficients as a vector, alpha level, method which can be either "Tukey", "Scheffe" or "Bonferroni g" where g is the number of tests being conducted, the data to be used, the factor variable as a character string, the response variable as a character string, and the factor levels as a character vector. This function outputs the lower and upper bounds of the confidence interval as a vector.
+
+
+
+```{r message=TRUE, warning=FALSE}
+
+contrast.test <- function(coefficients,c,Y,mylevel,response,level.names){
+ mydata <- Y
+   r <- level.names %>% length
+   SSE_vec <- c()
+   factor_level_means <- c()
+   factor_length <- c()
+   factors <- list()
+   level_initial_values <- c(1:r) %>% as.list
+   # Initially populate the list with the correct number of values.
+   factors <- level_initial_values %>% imap(~list.append(.y))
+   # Set the names of the list with the correct factor names
+   names(factors) <- level.names
+   # Create a nested list that contains the observations,length, and mean of each factor level
+   factors %<>% imap(~list("observations" =mydata %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response),"length" = mydata %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response) %>% length,"mean" = mydata %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response) %>% mean)) 
+   # Calculate necessary values from the nested list to find the Test Statistic 
+   SSE_vec <-  factors %>% imap(~(factors[[.y]]$observations - factors[[.y]]$mean)^2) %>% unlist
+   SSE <- SSE_vec %>% sum
+   MSE <- SSE/((mydata %>% extract2(response) %>% length) - r)
+   L_hat_means <- factors %>% imap_dbl(~factors[[.y]]$mean) %>% unname
+   L_hat_means %<>% imap_dbl(~coefficients[[.y]] * L_hat_means[[.y]])
+   L_hat <- L_hat_means %>% sum 
+   ci_s_length <- factors %>%  imap_dbl(~factors[[.y]]$length) %>% unname
+   ci_s_length %<>%  imap_dbl(~(coefficients[[.y]]^2)/(ci_s_length[[.y]]))
+   ci_s <- ci_s_length %>% sum 
+   var_L_hat <- MSE * ci_s 
+   sd_L_hat <- sqrt(var_L_hat)
+   TestStat <- (L_hat-c)/sd_L_hat
+   
+   return(TestStat)
+}
+```
+
+This function calculates the test statistic for a contrast. The function requires the contrast coefficients as a vector, the value of c for the null hypothesis, the data to be used, the factor variable as a character string, the response variable as a character string, and the factor levels as a character vector. This function outputs the test statistic that can be compared to the family-wise procedure critical values or the critical value of a single contrast t-test. 
+
+
+
+```{r message=FALSE, warning=FALSE}
+
+overall.test <- function(Y,mylevel,response,level.names){
+   r <- level.names %>% length
+   SSTR_vec <- c()
+   SSE_vec <- c()
+   factors <- list()
+   level_initial_values <- c(1:r) %>% as.list
+   # Initially populate the list with the correct number of values.
+   factors <- level_initial_values %>% imap(~list.append(.y))
+   # Set the names of the list with the correct factor names
+   names(factors) <- level.names
+   # Create a nested list that contains the observations,length, and mean of each factor level
+   factors %<>% imap(~list("observations" =Y %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response),"length" = Y %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response) %>% length,"mean" = Y %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response) %>% mean)) 
+   # Calculate necessary values from the nested list to find the Test Statistic and P-value
+   overall_mean <- Y %>% extract2(response) %>% mean
+   SSTR_vec <- factors %>% imap(~(factors[[.y]]$length*(factors[[.y]]$mean-overall_mean)^2)) %>% unlist
+   SSE_vec <-  factors %>% imap(~(factors[[.y]]$observations - factors[[.y]]$mean)^2) %>% unlist
+   SSTR <- SSTR_vec %>% sum
+   SSE <- SSE_vec %>% sum
+   MSTR <- SSTR/(r-1)
+   MSE <- SSE/((Y %>% extract2(response) %>% length) - r)
+   Test_Statistic <- MSTR/MSE
+   P_value <- pf(Test_Statistic,r-1,(Y %>% extract2(response) %>% length) - r,lower.tail = FALSE)
+   output_list <- list("TestStat" = Test_Statistic,"pvalue" = P_value )
+   
+   return(output_list)
+}
+
+
+```
+
+This function conducts an overall test for all factor level means. The function requires the data to be used, the factor variable as a character string, the response variable as a character string, and the factor levels as a character vector as input. This function outputs a list containing the test statistic and the p-value.
+
+
+```{r message=FALSE, warning=FALSE}
+sample_size_power <- function(alpha,n0,r,delta,sigma){
+  n0 %<>% as.integer 
+  cv2 = qf(1-alpha,r-1,r*(n0-1))
+1-pf(cv2,r-1,r*(n0-1),n0*delta^2/2/sigma^2)
+}
+
+```
+
+This function calculates the power under the alternative for planning sample sizes. The function requires the alpha level, the sample size, number of factor levels, the difference between the highest mean and lowest mean, and the estimated standard deviation. This function outputs the power under the alternative for a suggested sample size.
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE}
+
+sliderInput("sample_size","Sample Size",min = 0,max = 150,value = 10)
+textOutput("output_text")
+output$output_text <- renderText({
+  n0 <- input$sample_size %>% as.integer
+  paste0("Power: ",sample_size_power(0.05,n0,3,1,sigma))
+})
+
+```
+
+This shiny widget allows the user to select a sample size from 0 to 150 and outputs the corresponding power under the alternative as text.
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE}
+
+ui <- dashboardPage(
+  dashboardHeader(title = "Residual Analysis"),
+  dashboardSidebar(fileInput("select_data","Select Data"),
+                   selectInput("response_variable","Choose Response Variable",choices = c()),
+                   selectInput("factor_variable","Choose Factor Variable",choices = c()),
+                   selectInput("transformation","Transform Response Variable",choices = c("None","Log","Squared","Inverse"))),
+  
+  dashboardBody(
+    fluidRow(
+      box( plotlyOutput("residual_plot")),
+      box(plotlyOutput("qq_plot")),
+      box(plotOutput("dot_plot"))
+    )
+  )
+)
+
+server <- function(input,output,session){
+  data <- reactive({
+    data_object <- input$select_data
+    if(length(data_object$datapath) != 0){
+      data <- read.table(data_object$datapath,header = TRUE)
+    }
+  })
+  
+  
+  observeEvent(data(),{
+    updateSelectInput(session,"response_variable",choices = colnames(data()))   
+    updateSelectInput(session,"factor_variable",choices = colnames(data()))   
+  })
+  
+  
+  
+  
+  observeEvent(input$transformation,{
+    if(input$transformation == "Log"){
+      residuals_transformed <- reactive({
+        data() %>% extract2(input$factor_variable) %>% unique %>%  
+          map(~ data() %>% 
+                filter(!!as.symbol(input$factor_variable) == .x) %>% 
+                extract2(input$response_variable) %>% log - data() %>%
+                filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$response_variable) %>% log %>% mean) %>% 
+          unlist
+        
+      })  
+      
+      factor_means_transformed <- reactive({data() %>% extract2(input$factor_variable) %>% unique %>%
+          map(~data() %>% 
+                filter(!!as.symbol(input$factor_variable) == .x) %>%
+                extract2(input$response_variable) %>% log %>% mean) %>% 
+          unlist 
+      })
+      fitted_values_transformed<- reactive({
+        factor_lengths <- data() %>% extract2(input$factor_variable) %>% as.factor %>% levels %>% map_int(~data()%>%  filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$factor_variable) %>% length)
+        fitted_values <- rep(factor_means_transformed(),factor_lengths)
+      })
+      
+      residuals_standard_transformed <- reactive({
+        residuals_standard_transformed <- residuals_transformed() -(residuals_transformed() %>% mean)
+        residuals_standard_transformed <- residuals_standard_transformed/residuals_transformed() %>% sd
+      })
+      output$residual_plot <- renderPlotly({
+        ggplot(data(),aes(x = fitted_values_transformed(),y = residuals_transformed(),color = !!as.symbol(input$factor_variable))) + geom_point()+
+          xlab("Fitted Values")+ylab("Residuals")
+        
+      })
+      
+      
+      output$dot_plot <- renderPlot({
+        if(length(input$factor_variable) != 0 & length(input$response_variable) != 0 & length(data()) != 0){ 
+          ggplot(data = data(),aes(x = !!as.symbol(input$factor_variable) %>% as.factor,y = !!as.symbol(input$response_variable) %>% log ,fill = !!as.symbol(input$factor_variable) %>% as.factor))+ 
+            geom_dotplot(binaxis = "y",stackdir = "center",binpositions = "all",show.legend = FALSE)+
+            xlab(input$factor_variable)+ylab(input$response_variable)+
+            stat_summary(fun = mean,geom = "point",color = "red",show.legend = FALSE,size = 4)
+        }
+      })
+      output$qq_plot <- renderPlotly({ ggplot(mapping = aes(sample = residuals_standard_transformed())) + geom_qq()+geom_qq_line(col = 2)+labs(title = "Normal Q-Q Plot")+xlab("Theoretical Quantiles")+ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())})
+      
+    }
+    
+    
+    else if(input$transformation == "Squared"){
+      residuals_transformed <- reactive({
+        data() %>% extract2(input$factor_variable) %>% unique %>%  
+          map(~ data() %>% 
+                filter(!!as.symbol(input$factor_variable) == .x) %>% 
+                extract2(input$response_variable) %>% multiply_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>% 
+                                                                    extract2(input$response_variable)) - data() %>%
+                filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$response_variable)%>% 
+                multiply_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$response_variable))%>% mean) %>% 
+          unlist
+        
+      })  
+      
+      factor_means_transformed <- reactive({data() %>% extract2(input$factor_variable) %>% unique %>%
+          map(~data() %>% 
+                filter(!!as.symbol(input$factor_variable) == .x) %>%
+                extract2(input$response_variable) %>%
+                multiply_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>% 
+                              extract2(input$response_variable))%>% mean) %>% 
+          unlist 
+      })
+      fitted_values_transformed<- reactive({
+        factor_lengths <- data() %>% extract2(input$factor_variable) %>% as.factor %>% levels %>% map_int(~data()%>%  filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$factor_variable) %>% length)
+        fitted_values <- rep(factor_means_transformed(),factor_lengths)
+      })
+      
+      residuals_standard_transformed <- reactive({
+        residuals_standard_transformed <- residuals_transformed() -(residuals_transformed() %>% mean)
+        residuals_standard_transformed <- residuals_standard_transformed/residuals_transformed() %>% sd
+      })
+      output$residual_plot <- renderPlotly({
+        ggplot(data(),aes(x = fitted_values_transformed(),y = residuals_transformed(),color = !!as.symbol(input$factor_variable))) + geom_point()+
+          xlab("Fitted Values")+ylab("Residuals")
+        
+      })
+      
+      
+      output$dot_plot <- renderPlot({
+        response_variable_squared <- data() %>% extract2(input$response_variable) %>% multiply_by(data() %>% extract2(input$response_variable))
+        if(length(input$factor_variable) != 0 & length(input$response_variable) != 0 & length(data()) != 0){ 
+          ggplot(data = data(),aes(x = !!as.symbol(input$factor_variable) %>% as.factor,y = response_variable_squared,fill = !!as.symbol(input$factor_variable) %>% as.factor))+ 
+            geom_dotplot(binaxis = "y",stackdir = "center",binpositions = "all",show.legend = FALSE)+
+            xlab(input$factor_variable)+ylab(input$response_variable)+
+            stat_summary(fun = mean,geom = "point",color = "red",show.legend = FALSE,size = 4)
+        }
+      })
+      output$qq_plot <- renderPlotly({ ggplot(mapping = aes(sample = residuals_standard_transformed())) + geom_qq()+geom_qq_line(col = 2)+labs(title = "Normal Q-Q Plot")+xlab("Theoretical Quantiles")+ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())})
+      
+    }   
+    
+    else if(input$transformation == "Inverse"){
+      residuals_transformed <- reactive({
+        data() %>% extract2(input$factor_variable) %>% unique %>%  
+          map(~ 1 %>% divide_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>%  extract2(input$response_variable)) - 1 %>% 
+                divide_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$response_variable)) %>% mean) %>% 
+          unlist
+        
+      })  
+      
+      factor_means_transformed <- reactive({data() %>% extract2(input$factor_variable) %>% unique %>%
+          map(~ 1 %>% divide_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>%  extract2(input$response_variable))%>% mean) %>% 
+          unlist 
+      })
+      fitted_values_transformed<- reactive({
+        factor_lengths <- data() %>% extract2(input$factor_variable) %>% as.factor %>% levels %>% map_int(~data()%>%  filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$factor_variable) %>% length)
+        fitted_values <- rep(factor_means_transformed(),factor_lengths)
+      })
+      
+      residuals_standard_transformed <- reactive({
+        residuals_standard_transformed <- residuals_transformed() -(residuals_transformed() %>% mean)
+        residuals_standard_transformed <- residuals_standard_transformed/residuals_transformed() %>% sd
+      })
+      output$residual_plot <- renderPlotly({
+        ggplot(data(),aes(x = fitted_values_transformed(),y = residuals_transformed(),color = !!as.symbol(input$factor_variable))) + geom_point()+
+          xlab("Fitted Values")+ylab("Residuals")
+        
+      })
+      
+      
+      output$dot_plot <- renderPlot({
+        if(length(input$factor_variable) != 0 & length(input$response_variable) != 0 & length(data()) != 0){ 
+          ggplot(data = data(),aes(x = !!as.symbol(input$factor_variable) %>% as.factor,y = 1 %>% divide_by(!!as.symbol(input$response_variable)),fill = !!as.symbol(input$factor_variable) %>% as.factor))+ 
+            geom_dotplot(binaxis = "y",stackdir = "center",binpositions = "all",show.legend = FALSE)+
+            xlab(input$factor_variable)+ylab(input$response_variable)+
+            stat_summary(fun = mean,geom = "point",color = "red",show.legend = FALSE,size = 4)
+        }
+      })
+      output$qq_plot <- renderPlotly({ ggplot(mapping = aes(sample = residuals_standard_transformed())) + geom_qq()+geom_qq_line(col = 2)+labs(title = "Normal Q-Q Plot")+xlab("Theoretical Quantiles")+ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())})
+      
+    }   
+    else{
+      residuals <- reactive({
+        data() %>% extract2(input$factor_variable) %>% unique %>%  
+          map(~ (data() %>% 
+                   filter(!!as.symbol(input$factor_variable) == .x) %>% 
+                   extract2(input$response_variable)) - (data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$response_variable)%>%                    mean)) %>%  unlist
+        
+      }) 
+      
+      factor_means <- reactive({data() %>% extract2(input$factor_variable) %>% unique %>%
+          map(~data() %>% 
+                filter(!!as.symbol(input$factor_variable) == .x) %>%
+                extract2(input$response_variable) %>% mean) %>% 
+          unlist 
+      })
+      fitted_values <- reactive({
+        factor_lengths <- data() %>% extract2(input$factor_variable) %>% as.factor %>% levels %>% map_int(~data()%>%  filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$factor_variable) %>% length)
+        fitted_values <- rep(factor_means(),factor_lengths)
+      })
+      
+      
+      residuals_standard <- reactive({
+        residuals_standard <- residuals() -(residuals() %>% mean)
+        residuals_standard <- residuals_standard/residuals() %>% sd
+      })
+      output$residual_plot <- renderPlotly({
+        if(length(fitted_values()) != 0 & length(residuals()) != 0 & length(input$factor_variable) != 0){
+          ggplot(data(),aes(x = fitted_values(),y = residuals(),color = !!as.symbol(input$factor_variable))) + geom_point()+
+            xlab("Fitted Values")+ylab("Residuals")
+        }
+      })
+      
+      output$dot_plot <- renderPlot({
+        if(length(input$factor_variable) != 0 & length(input$response_variable) != 0 & length(data()) != 0){ 
+          ggplot(data = data(),aes(x = !!as.symbol(input$factor_variable) %>% as.factor,y = !!as.symbol(input$response_variable),fill = !!as.symbol(input$factor_variable) %>% as.factor))+ 
+            geom_dotplot(binaxis = "y",stackdir = "center",binpositions = "all",show.legend = FALSE)+
+            xlab(input$factor_variable)+ylab(input$response_variable)+
+            stat_summary(fun = mean,geom = "point",color = "red",show.legend = FALSE,size = 4)
+        }
+      })
+      
+      
+      output$qq_plot <- renderPlotly({ ggplot(mapping = aes(sample = residuals_standard())) + geom_qq()+geom_qq_line(col = 2)+labs(title = "Normal Q-Q Plot")+xlab("Theoretical Quantiles")+ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())})
+    } 
+    
+  })
+  
+  
+  
+}
+shinyApp(ui = ui, server = server)
+```
+
+This shiny dashboard allows the user to select a file from their computer and select one factor variable and one response variable. The app then displays the residuals against the fitted values, the dotplot of the factor variable and response variable, and the qqplot of the residuals. If the residual plots don't satisfy the model assumptions the user can select one of the transformation options to display the plots as if the response variable was transformed. In the real world data is usually doesn't meet model assumptions and so transformations can help. This app is useful to compare different transformations without having to code each one.
+
+#### 2. Data analysis
+
+##### (a)  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+ui <- dashboardPage(
+  dashboardHeader(title = "Residual Analysis"),
+  dashboardSidebar(fileInput("select_data","Select Data"),
+                   selectInput("response_variable","Choose Response Variable",choices = c()),
+                   selectInput("factor_variable","Choose Factor Variable",choices = c()),
+                   selectInput("transformation","Transform Response Variable",choices = c("None","Log","Squared","Inverse"))),
+  
+  dashboardBody(
+    fluidRow(
+      box( plotlyOutput("residual_plot")),
+      box(plotlyOutput("qq_plot")),
+      box(plotOutput("dot_plot"))
+    )
+  )
+)
+
+server <- function(input,output,session){
+  data <- reactive({
+    data_object <- input$select_data
+    if(length(data_object$datapath) != 0){
+      data <- read.table(data_object$datapath,header = TRUE)
+    }
+  })
+  
+  
+  observeEvent(data(),{
+    updateSelectInput(session,"response_variable",choices = colnames(data()))   
+    updateSelectInput(session,"factor_variable",choices = colnames(data()))   
+  })
+  
+  
+  
+  
+  observeEvent(input$transformation,{
+    if(input$transformation == "Log"){
+      residuals_transformed <- reactive({
+        data() %>% extract2(input$factor_variable) %>% unique %>%  
+          map(~ data() %>% 
+                filter(!!as.symbol(input$factor_variable) == .x) %>% 
+                extract2(input$response_variable) %>% log - data() %>%
+                filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$response_variable) %>% log %>% mean) %>% unlist
+        
+      })  
+      
+      factor_means_transformed <- reactive({data() %>% extract2(input$factor_variable) %>% unique %>%
+          map(~data() %>% 
+                filter(!!as.symbol(input$factor_variable) == .x) %>%
+                extract2(input$response_variable) %>% log %>% mean) %>% unlist 
+      })
+      fitted_values_transformed<- reactive({
+        factor_lengths <- data() %>% extract2(input$factor_variable) %>% unique %>% map_int(~data()%>%  filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$factor_variable) %>% length)
+        fitted_values <- rep(factor_means_transformed(),factor_lengths)
+      })
+      
+      residuals_standard_transformed <- reactive({
+        residuals_standard_transformed <- residuals_transformed() -(residuals_transformed() %>% mean)
+        residuals_standard_transformed <- residuals_standard_transformed/residuals_transformed() %>% sd
+      })
+      output$residual_plot <- renderPlotly({
+        ggplot(data(),aes(x = fitted_values_transformed(),y = residuals_transformed(),color = !!as.symbol(input$factor_variable))) + geom_point()+
+          xlab("Fitted Values")+ylab("Residuals")
+        
+      })
+      
+      
+      output$dot_plot <- renderPlot({
+        if(length(input$factor_variable) != 0 & length(input$response_variable) != 0 & length(data()) != 0){ 
+          ggplot(data = data(),aes(x = !!as.symbol(input$factor_variable) %>% as.factor,y = !!as.symbol(input$response_variable) %>% log ,fill = !!as.symbol(input$factor_variable) %>% as.factor))+ 
+            geom_dotplot(binaxis = "y",stackdir = "center",binpositions = "all",show.legend = FALSE)+
+            xlab(input$factor_variable)+ylab(input$response_variable)+
+            stat_summary(fun = mean,geom = "point",color = "red",show.legend = FALSE,size = 4)
+        }
+      })
+      output$qq_plot <- renderPlotly({ ggplot(mapping = aes(sample = residuals_standard_transformed())) + geom_qq()+geom_qq_line(col = 2)+labs(title = "Normal Q-Q Plot")+xlab("Theoretical Quantiles")+ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())})
+      
+    }
+    
+    
+    else if(input$transformation == "Squared"){
+      residuals_transformed <- reactive({
+        data() %>% extract2(input$factor_variable) %>% unique %>%  
+          map(~ data() %>% 
+                filter(!!as.symbol(input$factor_variable) == .x) %>% 
+                extract2(input$response_variable) %>% multiply_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>% 
+                                                                    extract2(input$response_variable)) - data() %>%
+                filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$response_variable)%>% 
+                multiply_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$response_variable))%>% mean) %>% 
+          unlist
+        
+      })  
+      
+      factor_means_transformed <- reactive({data() %>% extract2(input$factor_variable) %>% unique %>%
+          map(~data() %>% 
+                filter(!!as.symbol(input$factor_variable) == .x) %>%
+                extract2(input$response_variable) %>%
+                multiply_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>% 
+                              extract2(input$response_variable))%>% mean) %>% 
+          unlist 
+      })
+      fitted_values_transformed<- reactive({
+        factor_lengths <- data() %>% extract2(input$factor_variable) %>% as.factor %>% levels %>% map_int(~data()%>%  filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$factor_variable) %>% length)
+        fitted_values <- rep(factor_means_transformed(),factor_lengths)
+      })
+      
+      residuals_standard_transformed <- reactive({
+        residuals_standard_transformed <- residuals_transformed() -(residuals_transformed() %>% mean)
+        residuals_standard_transformed <- residuals_standard_transformed/residuals_transformed() %>% sd
+      })
+      output$residual_plot <- renderPlotly({
+        ggplot(data(),aes(x = fitted_values_transformed(),y = residuals_transformed(),color = !!as.symbol(input$factor_variable))) + geom_point()+
+          xlab("Fitted Values")+ylab("Residuals")
+        
+      })
+      
+      
+      output$dot_plot <- renderPlot({
+        response_variable_squared <- data() %>% extract2(input$response_variable) %>% multiply_by(data() %>% extract2(input$response_variable))
+        if(length(input$factor_variable) != 0 & length(input$response_variable) != 0 & length(data()) != 0){ 
+          ggplot(data = data(),aes(x = !!as.symbol(input$factor_variable) %>% as.factor,y = response_variable_squared,fill = !!as.symbol(input$factor_variable) %>% as.factor))+ 
+            geom_dotplot(binaxis = "y",stackdir = "center",binpositions = "all",show.legend = FALSE)+
+            xlab(input$factor_variable)+ylab(input$response_variable)+
+            stat_summary(fun = mean,geom = "point",color = "red",show.legend = FALSE,size = 4)
+        }
+      })
+      output$qq_plot <- renderPlotly({ ggplot(mapping = aes(sample = residuals_standard_transformed())) + geom_qq()+geom_qq_line(col = 2)+labs(title = "Normal Q-Q Plot")+xlab("Theoretical Quantiles")+ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())})
+      
+    }   
+    
+    else if(input$transformation == "Inverse"){
+      residuals_transformed <- reactive({
+        data() %>% extract2(input$factor_variable) %>% unique %>%  
+          map(~ 1 %>% divide_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>%  extract2(input$response_variable)) - 1 %>% 
+                divide_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$response_variable)) %>% mean) %>% 
+          unlist
+        
+      })  
+      
+      factor_means_transformed <- reactive({data() %>% extract2(input$factor_variable) %>% unique %>%
+          map(~ 1 %>% divide_by(data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>%  extract2(input$response_variable))%>% mean) %>% 
+          unlist 
+      })
+      fitted_values_transformed<- reactive({
+        factor_lengths <- data() %>% extract2(input$factor_variable) %>% as.factor %>% levels %>% map_int(~data()%>%  filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$factor_variable) %>% length)
+        fitted_values <- rep(factor_means_transformed(),factor_lengths)
+      })
+      
+      residuals_standard_transformed <- reactive({
+        residuals_standard_transformed <- residuals_transformed() -(residuals_transformed() %>% mean)
+        residuals_standard_transformed <- residuals_standard_transformed/residuals_transformed() %>% sd
+      })
+      output$residual_plot <- renderPlotly({
+        ggplot(data(),aes(x = fitted_values_transformed(),y = residuals_transformed(),color = !!as.symbol(input$factor_variable))) + geom_point()+
+          xlab("Fitted Values")+ylab("Residuals")
+        
+      })
+      
+      
+      output$dot_plot <- renderPlot({
+        if(length(input$factor_variable) != 0 & length(input$response_variable) != 0 & length(data()) != 0){ 
+          ggplot(data = data(),aes(x = !!as.symbol(input$factor_variable) %>% as.factor,y = 1 %>% divide_by(!!as.symbol(input$response_variable)),fill = !!as.symbol(input$factor_variable) %>% as.factor))+ 
+            geom_dotplot(binaxis = "y",stackdir = "center",binpositions = "all",show.legend = FALSE)+
+            xlab(input$factor_variable)+ylab(input$response_variable)+
+            stat_summary(fun = mean,geom = "point",color = "red",show.legend = FALSE,size = 4)
+        }
+      })
+      output$qq_plot <- renderPlotly({ ggplot(mapping = aes(sample = residuals_standard_transformed())) + geom_qq()+geom_qq_line(col = 2)+labs(title = "Normal Q-Q Plot")+xlab("Theoretical Quantiles")+ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())})
+      
+    }   
+    else{
+      residuals <- reactive({
+        data() %>% extract2(input$factor_variable) %>% unique %>%  
+          map(~ (data() %>% 
+                   filter(!!as.symbol(input$factor_variable) == .x) %>% 
+                   extract2(input$response_variable)) - (data() %>% filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$response_variable)%>%                    mean)) %>%  unlist
+        
+      }) 
+      
+      factor_means <- reactive({data() %>% extract2(input$factor_variable) %>% unique %>%
+          map(~data() %>% 
+                filter(!!as.symbol(input$factor_variable) == .x) %>%
+                extract2(input$response_variable) %>% mean) %>% 
+          unlist 
+      })
+      fitted_values <- reactive({
+        factor_lengths <- data() %>% extract2(input$factor_variable) %>% as.factor %>% levels %>% map_int(~data()%>%  filter(!!as.symbol(input$factor_variable) == .x) %>% extract2(input$factor_variable) %>% length)
+        fitted_values <- rep(factor_means(),factor_lengths)
+      })
+      
+      
+      residuals_standard <- reactive({
+        residuals_standard <- residuals() -(residuals() %>% mean)
+        residuals_standard <- residuals_standard/residuals() %>% sd
+      })
+      output$residual_plot <- renderPlotly({
+        if(length(fitted_values()) != 0 & length(residuals()) != 0 & length(input$factor_variable) != 0){
+          ggplot(data(),aes(x = fitted_values(),y = residuals(),color = !!as.symbol(input$factor_variable))) + geom_point()+
+            xlab("Fitted Values")+ylab("Residuals")
+        }
+      })
+      
+      output$dot_plot <- renderPlot({
+        if(length(input$factor_variable) != 0 & length(input$response_variable) != 0 & length(data()) != 0){ 
+          ggplot(data = data(),aes(x = !!as.symbol(input$factor_variable) %>% as.factor,y = !!as.symbol(input$response_variable),fill = !!as.symbol(input$factor_variable) %>% as.factor))+ 
+            geom_dotplot(binaxis = "y",stackdir = "center",binpositions = "all",show.legend = FALSE)+
+            xlab(input$factor_variable)+ylab(input$response_variable)+
+            stat_summary(fun = mean,geom = "point",color = "red",show.legend = FALSE,size = 4)
+        }
+      })
+      
+      
+      output$qq_plot <- renderPlotly({ ggplot(mapping = aes(sample = residuals_standard())) + geom_qq()+geom_qq_line(col = 2)+labs(title = "Normal Q-Q Plot")+xlab("Theoretical Quantiles")+ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())})
+    } 
+    
+  })
+  
+  
+  
+}
+shinyApp(ui = ui, server = server,options = list(height = 750,width = 1000))
+```
+
+
+
+###### (i)
+
+When you select the Tire Tread Life data using the browse button and then select TreadLife as the response variable the dotplot appears on the bottom left. From the dotplot it is apparent that brand 4 seems to have the lowest mean tread life for its tires. Brand 2 and 3 seem to be have similar mean tread lives and brand 1 seems to fit between brands 2 and 3 and brand 4 in terms of mean tread life.
+
+
+
+```{r message=FALSE, warning=FALSE}
+mydata = read.table("TreadLife.txt", header=T)
+
+factor_levels <- c("1","2","3","4")
+d <- factor_levels %>% map(~abs((mydata %>% filter(Brand == .x) %>% extract2("TreadLife")) - (mydata %>% filter(Brand == .x) %>% extract2("TreadLife") %>% median)))
+
+overall_mean <- d %>% unlist %>% mean
+MSTR <- d %>% map(~.x %>% length * (.x %>% mean - overall_mean)^2) %>% unlist %>% sum %>% divide_by(3)
+MSE <- d %>% map(~(.x-(.x %>% mean))^2) %>% unlist %>% sum %>% divide_by(78)
+F_stat <- MSTR/MSE
+display_table <- data.frame("F_Statistic" = F_stat,"F_Critical_Value" = qf(0.99,3,78),"P_Value" = pf(F_stat,3,78,lower.tail = FALSE))
+
+display_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+###### (ii)
+
+In this part we want to test whether the model assumption of constant error terms holds. The Brown-Forsythe test that we will conduct is: 
+
+$H_0: Var(\varepsilon_{ij})$ are all equal 
+
+$H_a: Var(\varepsilon_{ij})$ are not all equal 
+
+The F test statistic is computed by dividing the MSTR of the $d_i$'s by the MSE of the $d_i$'s and is displayed in the table above.
+
+The decision rule is reject the null hypothesis if $F_{BR} \geq 4.043103$ and fail to reject the null hypothesis when $F_{BR} \leq 4.043103$ 
+
+As shown in the table above the F statistic is smaller than 4.043103 and the P-value is greater than 0.01 so we fail to reject the null hypothesis and conclude that the assumption of constant error term variance holds at a 0.01 significance level.
+
+
+###### (iii)
+The plot in the top right of the shiny app is the sample distribution of the standardized residuals vs the normal distribution along with the Q-Q line in red. We can see that almost all of the points are close or on the Q-Q line. Here we can confirm the normality of the error terms assumption and conduct hypothesis tests and construct confidence intervals.
+
+
+##### (b)
+
+```{r message=FALSE, warning=FALSE}
+overall_test <- overall.test(mydata,"Brand","TreadLife", levels(mydata$Brand %>% as.factor))
+output_table_b <- data.frame("F_Statistic" = overall_test[[1]],"F_Critical_Value" = qf(0.95,3,78), "P_value" = overall_test[[2]])
+
+
+output_table_b %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+For this test the null hypothesis is $H_0: \mu_{1} = \mu_{2} = \mu_{3} = \mu_{4}$ and the alternative hypothesis is $H_a:$ not all $\mu_i$ are equal. Here we use the F test for equality of factor level means which uses an F statistic that is calculated using $F^* =\frac{MSTR}{MSE}$. The decision rule is conclude $H_0$ when $F^* \leq 2.721783$ and conclude $H_a$ when $F^* \geq 2.721783$ at alpha level 0.05. Using the F statistic and P value used in the above table we can reject the null hypothesis and conclude that not all $\mu_i$ are equal at significance level 0.05. Now there is a need for further analysis to see how these $\mu_i$s differ.
+
+##### (c)
+
+```{r message=FALSE, warning=FALSE}
+test_coef <- list(c(-1,0,1,0),c(-1,0,0,1),c(0,-1,1,0),c(0,-1,0,1),c(0.5,0.5,-0.5,-0.5),c(-0.5,-0.5,1,0),c(-1/3,-1/3,-1/3,1))
+
+compare_methods <- data.frame("Scheffe" = sqrt((3)*(qf(1-0.1,3,78))),"Bonferroni" = qt(1-0.1/(2*7),78))
+
+compare_methods %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+pairwise_tests <- test_coef %>% map(~contrast.test(.x,0,mydata,"Brand","TreadLife",c("1","2","3","4")))
+
+ output_table_pairwise <- data.frame("Tests" = c(("Brand Means: 3-1"),("Brand Means: 4-1"),("Brand Means: 3-2"),("Brand Means: 4-2"),"L1","L2","L3"),
+                           "Bonferroni_Critical_Value" = rep(qt(1-0.1/(2*7),78),7),"Contrast_Function_Test_Statistics" = pairwise_tests %>% unlist)
+output_table_pairwise %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+In this test the null hypothesis is $H_0: L = 0$ and alternative hypothesis $H_a: L \neq 0$. For this family-wise test we are interested in four pairwise comparisons and three contrasts between factor level means. We cannot use the Tukey procedure since we are considering contrasts, which leaves us with the Scheffe Procedure and the Bonferroni Procedure. There is no data snooping in this test so we should pick the Bonferroni Procedure since it has the smallest critical value and is the least conservative. The test statistics are computed in the table above and the decision rule is conclude $H_0$ if $|t^*| \leq 2.506176$ and conclude $H_a$ if $|t^*| \geq 2.506176$ From the above table we can reject the null hypothesis for the pairwise comparisons between Brands 3 and 1 and Brands 4 and 2 and the contrast represented in L3. We fail to reject the null hypothesis for the pairwise comparisons between Brands 4 and 1 and Brands 3 and 2 as well as the contrasts represented by L1 and L2.
+
+##### (d)
+
+```{r message=FALSE, warning=FALSE}
+pairwise_test_coef <- list(c(-1,0,1,0),c(-1,0,0,1),c(0,-1,1,0),c(0,-1,0,1))
+
+
+compare_methods_pairwise <- data.frame("Scheffe" = sqrt((3)*(qf(1-0.05,3,78))),"Bonferroni" = qt(1-0.05/(2*6),78),"Tukey" = qtukey(1-0.05,4,78)/sqrt(2))
+
+compare_methods_pairwise %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+confidence_intervals <- pairwise_test_coef %>% map(~contrast.CI(.x,0.05,"Tukey",mydata,"Brand","TreadLife",c("1","2","3","4")))
+
+lower_bound <- confidence_intervals %>% map_dbl(~.x[1])
+upper_bound <- confidence_intervals %>% map_dbl(~.x[2])
+
+
+output_table_interval <- data.frame("Test" = c(("Brand Means: 3-1"),("Brand Means: 4-1"),("Brand Means: 3-2"),("Brand Means: 4-2")),"Lower Bound" = lower_bound,"Upper Bound" = upper_bound)
+
+output_table_interval %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+```
+
+In this part we are interested in four pairwise comparisons between the national brands and local brands after seeing the results of the previous test. To construct the simultaneous confidence intervals we need to pick a family-wise multiplier. We have a data snooping problem so we can potentially use the Bonferroni Procedure with g set to be 6 which is all possible pairwise comparisons, the Tukey Procedure, or the Scheffe Procedure. From the table above the Tukey Procedure provides the smallest critical value, so to construct the smallest possible intervals we should use the Tukey critical value as our multiplier. The 95% confidence intervals are provided in the table above. The confidence intervals for Brand 4 and 1 and Brand 3 and 2 contain zero in their intervals. This provides more evidence that the means are the same between Brand 4 and 1 and Brand 3 and 2. For Brand 3 and 1 it seems that the mean of Brand 3 is larger than the mean of Brand 1 which suggests that the local brand has a higher average tread life than the national brand, but this is contradicted with the interval of Brand 4 and 2. The interval comparing Brand 4 and 2 suggests that the mean of Brand 4 a local brand is smaller than the mean of Brand 2 a national brand. I think from these results that the quality of a brand's tires and their tread life depend on individual brands. It's possible that there are national brands that have lower tread lives and some that have higher tread lives, this is the same for local brands. I would advise the trucking company to look at both national and local brands individually to find the brand with the highest tread life.  
+
+##### (e)
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+sigma <- mydata$TreadLife %>% sd
+sliderInput("sample_size","Sample Size",min = 0,max = 150,value = 10)
+textOutput("output_text")
+output$output_text <- renderText({
+  n0 <- input$sample_size %>% as.integer
+  paste0("Power: ",sample_size_power(0.05,n0,3,1,sigma))
+})
+
+```
+
+Using the above slider and function I would plan the sample size to be 100. When 100 is selected on the slider the power is about 0.80 which is the same as controlling the type II error at 0.2. If possible however it wouldn't hurt to increase the sample size in case the estimated standard deviation is not a good estimation.

@@ -1,0 +1,131 @@
+---
+title: "Homework 1"
+author: "Camden Possinger"
+output: 
+   prettydoc::html_pretty:
+      theme: hpstr
+      highlight: github
+---
+### Answers
+
+##### Part I
+
+1. The experimental unit for this study is the individual pieces of clothing. This is because the individual pieces of clothing are the smallest division that any treatment can be applied to.  
+
+2. The experimental unit for this study is the individual taste panels. This is because the individual taste panels are the smallest division that any treatment can be applied to. The experimental unit is not the individual people on the taste panels, because the whole panel's consensus is considered and recorded not the individual's.  
+
+##### Part II
+```{r echo=FALSE}
+library(magrittr)
+library(kableExtra)
+paper_color <- c("Blue","Green","Orange")
+parking_lots <- c("Parking Lot 1","Parking Lot 2","Parking Lot 3","Parking Lot 4")
+combo_list <- list("Paper Color"=paper_color,"Parking Lots"=parking_lots)
+combinations <- combo_list %>% expand.grid 
+combinations %>% kable(format = "html",align = "c") %>% kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "float_right",font_size = 12,wraptable_width = "10pt")
+```
+
+###### 1.
+
+a.  This study is mixed because the treatments are being administered randomly and there is an observational factor that the administer does not have control over.
+
+b.  In this experiment there are two factors,the color of the questionnaire and the supermarket parking lots that are chosen. The factor levels for the color of the questionnaire are the individual colors (Blue, Green, Orange). The factor levels for the supermarket parking lots are the four parking lots themselves. There are twelve factor level combinations shown in the table on the right.
+
+c.  This study is a randomized complete blocked design.
+
+d.  The basic unit of study is the car that the study administer puts the questionnaire on.
+
+
+###### 2.
+a. This study is also mixed, because the basic unit of study is not homogeneous. In order to combat this it makes sense to make each subject their own block. However by following this design each subject receives all of the treatments, which differs from a completely randomized experiment. Even though the order of the assignment of the questionnaires was randomized each subject receives all of the treatments so therefore this experiment is mixed.  
+
+b. There is only one factor, which is the three different questionnaires where the three levels are the individual questionnaires (A,B,C). There is only one factor, so the factor-level combinations are just the factor levels themselves.
+c. This study is a repeated measure design, since all of the subjects receive all of the treatments.
+
+d. In this study is comparing different questionnaires the basic unit of study is the sessions where a             treatment is applied to a subject.
+
+
+###### 3. 
+
+
+a. This study is observational because the administer of the study does not have control of the consistency of the company's liquid chemical products.
+b. In this study there are two factors batches and barrels. The factor levels are the individual batches with five levels and barrels with four levels respectively. The factor combinations are all 20 of the possible combinations of batches and barrels shown in the table. 
+c. This a Cross-Sectional study because multiple sub populations are sampled randomly, but the study administer does not have control over the treatments.
+d. The basic unit of study is the determinations that were made per barrel 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(magrittr)
+library(kableExtra)
+library(tidyr)
+batches <- c(1:5)
+barrels <- c(1:20)
+batch_df <- data.frame("Barrel" = barrels,"Batch" = batches)
+batch_df %<>% table %>% t %>% ifelse("Barrel" == "1","x") %>% ifelse("Barrel" == FALSE,"x") %>% replace_na("0") 
+knitr::kables(
+   list( kable(batches %>% as.data.frame,format = "html",align = "c",col.names = "Batch",valign = "t") %>% kable_styling(font_size = 12,full_width = FALSE,position = "center",bootstrap_options = "striped"),
+         kable(batch_df,format = "html",align = "c",valign = "t") %>% kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center",font_size = 12) %>%
+            add_header_above(header = c("Barrel" = 20)) %>% 
+            footnote(general = "'x' represents that the individual barrel is in the specified batch and '0' means that the individual barrel is not in the specified batch. 
+            There are 20 barrels in total.")
+   )) 
+
+```
+
+###### 4.
+a. This is an observational study because the administer of the study does not have control over administering the treatments on the subjects. In this study it would be unethical to randomly assign treatments
+b. In this study there is only one qualitative factor, physical fitness, there are three levels (below average, average, above average). Since there is only one factor the factor combinations are just the factor levels themselves.
+
+c. This is a Cross-Sectional Study, because the study considers a population at a single point in time. In this case the population being analyzed is patients who underwent corrective knee surgery and the single point in time is when all the patients successfully completed physical therapy.
+d. The basic unit of study is the individual patients who underwent corrective knee surgery and completed successful rehabilitation through physical therapy.
+
+
+
+##### Part III
+1. The best study design for this experiment would be a $2^3$ factorial design with four replicates. First there are three factors each with two factor levels so in total there are eight treatments that need to be applied to the thirty two bars being hardened. Since there are thirty two bars that can be hardened each treatment can be applied four times. Next the treatments need to be randomized to each bar being hardened, this can be done easily in R by generating 8 random numbers from any continuous probability distribution. Then the random numbers need to be associated with each of the bars. Once the treatments are assigned to each of the bars the experiment can be conducted being careful to harden each bar in a random order by using a statistical package that provides random permutations. This experimental plan will be effective because the experimental units are very homogeneous, the bars are for the most part the same with limited nuisance factors. Another element of the experiment to take into account is the amount of bars that are being hardened. Since there are thirty two bars being hardened we can use every possible treatment exactly four times. The fact that we can apply all the treatments multiple times is a good sign that all possible treatments will be represented when it's time to do analysis.      
+
+2. The best study design for this experiment would be a randomized complete block design. A randomized complete block design will be effective because there are two known potential nuisance factors each with two levels. We can block on those two factors creating four blocks in total. Then we can randomly assign the three treatments (sequence 1, sequence 2, sequence 3) to each separate block being careful not to use the same random assignment for each block. We can use a randomized complete block design because there are enough assemblers to randomly assign all three treatments to. By using this randomized complete block design we can isolate the potential nuisance factors and assign all possible treatments to the experimental unit creating a simple analysis where we can discover helpful causation.
+
+Code for the table in Part 2 Problem 1
+
+```{r eval=FALSE, include=TRUE}
+library(magrittr)
+library(kableExtra)
+paper_color <- c("Blue","Green","Orange")
+parking_lots <- c("Parking Lot 1","Parking Lot 2","Parking Lot 3","Parking Lot 4")
+combo_list <- list("Paper Color"=paper_color,"Parking Lots"=parking_lots)
+combinations <- combo_list %>% expand.grid 
+combinations %>% kable(format = "html",align = "c") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,
+                 position = "float_right",font_size = 12,wraptable_width = "10pt")
+```
+Code for the table in Part 2 Problem 3
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+library(magrittr)
+library(kableExtra)
+library(tidyr)
+batches <- c(1:5)
+barrels <- c(1:20)
+batch_df <- data.frame("Barrel" = barrels,"Batch" = batches)
+batch_df %<>% table %>% t %>% ifelse("Barrel" == "1","x") %>% 
+   ifelse("Barrel" == FALSE,"x") %>% replace_na("0") 
+knitr::kables(
+   list( kable(batches %>% as.data.frame,format = "html",
+               align = "c",col.names = "Batch",valign = "t") %>% 
+         kable_styling(font_size = 12,full_width = FALSE,
+                          position = "center",bootstrap_options = "striped"),
+         kable(batch_df,format = "html",align = "c",valign = "t") %>% 
+            kable_styling(bootstrap_options = "striped",full_width = FALSE,
+                          position = "center",font_size = 12) %>%
+            add_header_above(header = c("Barrel" = 20)) %>% 
+            footnote(general = "'x' represents that the individual barrel 
+                                 is in the specified batch and '0'means that 
+                                 the individual barrel is not in the specified batch. 
+                                 There are 20 barrels in total.")
+   )) 
+
+```
+
+### Acknowledgements
+Thanks to Selena Ding and Irene Kitamura for their clarification of the factor-combinations of and experiment with only one factor!
+
+Another thanks to Vici Thahir for explaining the difference between an incomplete block design and a complete block design!

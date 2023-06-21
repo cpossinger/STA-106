@@ -1,0 +1,181 @@
+two_anova_test = function(Y,factorA,factorB,n,alpha.level=0.05)
+{
+  a = length(unique(factorA))
+  b = length(unique(factorB))
+  Yijbar = matrix(0,nrow = a,ncol = b)
+  for(i in 1:a)
+  {
+    for(j in 1:b)
+    {
+      Yijbar[i,j] = mean(Y[factorA==i&factorB==j])
+    }
+  }
+  u = mean(Y)
+  Yidotbar = apply(Yijbar,MARGIN = 1,mean)
+  Ydotjbar  = apply(Yijbar,MARGIN = 2,mean)
+  alpha = Yidotbar-u
+  beta = Ydotjbar-u
+  gamma = matrix(0,nrow = a,ncol = b)
+  for(i in 1:a)
+  {
+    for(j in 1:b)
+    {
+      gamma[i,j] = Yijbar[i,j]-Yidotbar[i]-Ydotjbar[j]+u
+    }
+  }
+  SSA = n*b*sum(alpha^2)
+  SSB = n*a*sum(beta^2)
+  SSAB = n*sum(gamma^2)
+  Yhat = rep(0,length(Y))
+  for(i in 1:a)
+  {
+    for(j in 1:b)
+    {
+      Yhat[factorA==i&factorB==j] = Yijbar[i,j]
+    }
+  }
+  e = Y-Yhat
+  SSE = sum((Y-Yhat)^2)
+  F_A = (SSA/(a-1))/(SSE/(a*b*(n-1)))
+  F_B = (SSB/(b-1))/(SSE/(a*b*(n-1)))
+  F_AB = (SSAB/((a-1)*(b-1)))/((SSE/(a*b*(n-1))))
+  F_critical_A = qf(1-alpha.level,a-1,a*b*(n-1))
+  F_critical_B = qf(1-alpha.level,b-1,a*b*(n-1))
+  F_critical_AB = qf(1-alpha.level,(a-1)*(b-1),a*b*(n-1))
+  Test_values = c(F_A,F_B,F_AB)
+  F_criticals = c(F_critical_A,F_critical_B,F_critical_AB)
+  dat = data.frame(Test_values=Test_values,F_critical = F_criticals)
+  return(dat)
+}
+
+## data_generator
+factorA.level = c(1,2,3)
+alpha = c(5,-5,0)
+factorB.level = c(1,2,3)
+beta = c(-10,10,0)
+a = 3
+b=3
+n = 10
+factorA = rep(factorA.level,each=b*n)
+factorB = rep(rep(factorB.level,each=n),a)
+Y = rep(0,n*a*b)
+for( i in 1:(n*a*b))
+{
+  Y[i] =alpha[factorA[i]]+ beta[factorB[i]]
+}
+Y = Y+rnorm(n*a*b,sd=2)
+
+mydata = data.frame(Y=Y,factorA=factorA,factorB = factorB)
+write.table(mydata,file='Discussion9.txt')
+
+
+
+mydata = read.table('Discussion9.txt')
+## Note: interaction effect is insignificant in this dataset.
+##Questions:
+# Q1: Construct the 95% confidence interval for u11
+# Q2: Interest the shortest 95% confidence intervals for all pairwise comparisons 
+#     among levels under Factor A. (Just construct the interval for u1.-u2. for saving time)
+#     Think about what methods are applicable in principle.
+# Q3: Interest the shortest 95% confidence intervals for all pairwise comparisons among 
+#     levels under Factor A and levels under Factor B. (Just construct intervals for u1.-u2.
+#     and u.1-u.2 for saving time). Think about what methods are applicable.
+# Q4: Interest 10 constrasts among levels under factorA and levels under factorB.
+#     u1.-(u2.+u3.)/2 belongs to those interested constrasts.
+#     Only construct 95% confidence interval for u1.-(u2.+u3.)/2 for saving time
+#     Think about what methods are applicable.
+
+
+#Q1:
+alpha.level = 0.05
+a = length(unique(factorA))
+b = length(unique(factorB))
+n = length(Y)/(a*b)
+Yijbar = matrix(0,nrow = a,ncol = b)
+for(i in 1:a)
+{
+  for(j in 1:b)
+  {
+    Yijbar[i,j] = mean(Y[factorA==i&factorB==j])
+  }
+}
+u = mean(Y)
+Yidotbar = apply(Yijbar,MARGIN = 1,mean)
+Ydotjbar  = apply(Yijbar,MARGIN = 2,mean)
+alpha = Yidotbar-u
+beta = Ydotjbar-u
+gamma = matrix(0,nrow = a,ncol = b)
+for(i in 1:a)
+{
+  for(j in 1:b)
+  {
+    gamma[i,j] = Yijbar[i,j]-Yidotbar[i]-Ydotjbar[j]+u
+  }
+}
+Yhat = rep(0,length(Y))
+for(i in 1:a)
+{
+  for(j in 1:b)
+  {
+    Yhat[factorA==i&factorB==j] = Yijbar[i,j]
+  }
+}
+e = Y-Yhat
+SSE = sum((Y-Yhat)^2)
+MSE = SSE/(a*b*(n-1))
+u11hat = Yijbar[1,1]
+se_u11hat = sqrt(MSE/n)
+multiplier = qt(1-alpha.level/2,df=a*b*(n-1))
+CI = c(u11hat-multiplier*se_u11hat,u11hat+multiplier*se_u11hat)
+
+#Q2:
+
+Estimate = alpha[1]-alpha[2]
+se = sqrt(2*MSE/(b*n))
+# turkey
+multiplier1 = 1/sqrt(2)*qtukey(1-alpha.level,a,a*b*(n-1))
+# Bonferroni
+g =3
+multiplier2 = qt(1-alpha.level/(2*g),a*b*(n-1))
+# Scheffe
+multiplier3 = sqrt((a-1)*qf(1-alpha.level,a-1,(n-1)*a*b))
+
+CI = c(Estimate-multiplier1*se,Estimate+multiplier1*se)
+
+#Q3 
+
+Estimate1 = alpha[1]-alpha[2]
+se1 = sqrt(2*MSE/(b*n))
+Estimate2 = beta[1]-beta[2]
+se2 = sqrt(2*MSE/(a*n))
+# Tukey-Bonferroni
+multiplier1.1 = 1/sqrt(2)*qtukey(1-alpha.level/2,a,a*b*(n-1))
+multiplier1.2 = 1/sqrt(2)*qtukey(1-alpha.level/2,b,a*b*(n-1))
+# Bonferroni
+g = 6
+multiplier2 = qt(1-alpha.level/(2*g),a*b*(n-1))
+# Scheffe 
+multiplier3 = sqrt((a+b-2)*qf(1-alpha.level,a+b-2,(n-1)*a*b))
+# Scheffe-Bonferroni
+multiplier4.1 = sqrt((a-1)*qf(1-alpha.level/2,a-1,(n-1)*a*b))
+multiplier4.2 = sqrt((b-1)*qf(1-alpha.level/2,b-1,(n-1)*a*b))
+
+CI1 = c(Estimate1-multiplier1.1*se1,Estimate1+multiplier1.1*se1)
+CI2 = c(Estimate2-multiplier1.2*se2,Estimate2+multiplier1.2*se2)
+
+# Q4
+est = alpha[1]-(alpha[2]+alpha[3])/2
+se = sqrt(1.5*MSE/(b*n))
+# Bonferroni 
+g = 10
+multiplier1 = qt(1-alpha.level/(2*g),(n-1)*a*b)
+
+# Scheffe
+multiplier2 = sqrt((a+b-2)*qf(1-alpha.level,(a+b-2),(n-1)*a*b))
+
+# Scheffe-Bonferroni
+multipler3 = sqrt((a-1)*qf(1-alpha.level/2,a-1,(n-1)*a*b))
+
+CI = c(est-se*multiplier1,est+se*multiplier1)
+
+mydata = read.table('Discussion9.txt')

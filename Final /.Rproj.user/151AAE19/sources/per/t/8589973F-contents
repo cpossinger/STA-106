@@ -1,0 +1,1148 @@
+---
+title: "STA 106 Final Project"
+author: "Ambar Mishra, Austin Chen, Camden Possinger, Sai Sriya Mudigonda"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: hpstr
+    highlight: github
+    toc: True
+---
+
+# Overall Analysis 
+## Data Prep and Exploratory Data Analysis 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(purrr)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Inital Data Prep 
+COVID19 = read.table("COVID19.txt", header = T, sep = "\t")
+COVID19[652,c(5:7)] = 0
+
+COVID19$AgeGroup %<>%  as.factor
+COVID19$Sex %<>%  as.factor
+COVID19$AgeGroup = factor(COVID19$AgeGroup,levels(COVID19$AgeGroup),1:7)
+# 2 is female 1 is Male
+COVID19$Sex = factor(COVID19$Sex,COVID19$Sex %>% levels,2:1) 
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+hist_covid <- ggplot(data = COVID19,aes(x = COVIDProp))+ 
+  geom_histogram()+xlab("Proportion of Total Deaths")+ylab("Count")+
+  labs(title = "Proportion of Total Deaths Related to Covid19")
+
+hist_influenza <- ggplot(data = COVID19 ,aes(x = InfluenzaProp))+ 
+  geom_histogram()+xlab("Proportion of Total Deaths")+ylab("Count")+
+  labs(title = "Proportion of Total Deaths Related to Influenza")
+
+hist_pneumonia <- ggplot(data = COVID19,aes(x = PneumoniaProp))+ 
+  geom_histogram()+xlab("Proportion of Total Deaths")+ylab("Count")+
+  labs(title = "Proportion of Total Deaths Related to Pnuemonia")
+
+hist_covid
+hist_influenza
+hist_pneumonia
+
+```
+
+The histograms for Covid 19, pneumonia, and influenza proportion of deaths is heavily right tailed. We will do a square root transformation of the data to make our model assumptions valid. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Inital Histogram AgeGroup 1
+factor_a_level_1_hist_covid <- ggplot(data = COVID19 %>% filter(AgeGroup == 1),aes(x = COVIDProp))+ 
+  geom_histogram()+xlab("Proportion of Total Deaths")+ylab("Count")+
+  labs(title = "Proportion of Total Deaths Related to Covid19 Ages 0-17 years")
+factor_a_level_1_hist_covid
+
+factor_a_level_1_hist_influenza <- ggplot(data = COVID19 %>% filter(AgeGroup == 1),aes(x = InfluenzaProp))+ 
+  geom_histogram()+xlab("Proportion of Total Deaths")+ylab("Count")+
+  labs(title = "Proportion of Total Deaths Related to Influenza Ages 0-17 years")
+factor_a_level_1_hist_influenza
+
+factor_a_level_1_hist_pneumonia <- ggplot(data = COVID19 %>% filter(AgeGroup == 1),aes(x = PneumoniaProp))+ 
+  geom_histogram()+xlab("Proportion of Total Deaths")+ylab("Count")+
+  labs(title = "Proportion of Total Deaths Related to Pnuemonia Ages 0-17 years")
+factor_a_level_1_hist_pneumonia
+
+
+COVID19 = COVID19[-which(COVID19$AgeGroup == 1),]
+COVID19$AgeGroup = factor(COVID19$AgeGroup,2:7,1:6)
+COVID19$COVIDProp <- COVID19$COVIDProp %>% sqrt
+COVID19$InfluenzaProp <- COVID19$InfluenzaProp %>% sqrt
+COVID19$PneumoniaProp<- COVID19$PneumoniaProp %>% sqrt
+
+```
+
+Since the Age group 0-17 years old has mostly zeros for the three diseases, we will eliminate this age group from our study as it does not provide much significance. 
+
+
+## Calculating Least Square Estimates
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Model Estimates and Residuals
+model_estimates <- function(a,b,factorA,factorB,Y){
+
+Yijbar = matrix(0,nrow = a,ncol = b)
+for(i in 1:a)
+{
+  for(j in 1:b)
+  {
+    Yijbar[i,j] = mean(Y[factorA==i&factorB==j])
+  }
+}
+u = mean(Y)
+Yidotbar = apply(Yijbar,MARGIN = 1,mean)
+Ydotjbar  = apply(Yijbar,MARGIN = 2,mean)
+alpha = Yidotbar-u
+beta = Ydotjbar-u
+gamma = matrix(0,nrow = a,ncol = b)
+for(i in 1:a)
+{
+  for(j in 1:b)
+  {
+    gamma[i,j] = Yijbar[i,j]-Yidotbar[i]-Ydotjbar[j]+u
+  }
+}
+
+Yhat = rep(0,length(Y))
+for(i in 1:a)
+{
+  for(j in 1:b)
+  {
+    Yhat[factorA==i&factorB==j] = Yijbar[i,j]
+  }
+}
+
+e = Y-Yhat
+
+return(list("Yijbar" = Yijbar,"Alpha" = alpha,"Beta" = beta,"Gamma" = gamma,"Yhat" = Yhat,"Residuals" = e,"Overall_Mean" = u))
+}
+
+
+
+Y = COVID19$COVIDProp
+I <-COVID19$InfluenzaProp 
+P <-COVID19$PneumoniaProp 
+factorA = COVID19$AgeGroup
+factorB = COVID19$Sex
+a = factorA %>% levels %>% length 
+b = factorB %>% levels %>% length 
+n = 52
+
+model_est_resid_covid <- model_estimates(a,b,factorA,factorB,Y)
+model_est_resid_influenza <- model_estimates(a,b,factorA,factorB,I)
+model_est_resid_pneumonia <- model_estimates(a,b,factorA,factorB,P)
+
+output_alpha_covid <- data.frame("Alpha" = model_est_resid_covid$Alpha)
+output_overall_mean_covid <- data.frame("Overall_Mean" = model_est_resid_covid$Overall_Mean)
+output_beta_covid <- data.frame("Beta" = model_est_resid_covid$Beta)
+output_gamma_covid <- data.frame("Gamma" = model_est_resid_covid$Gamma)
+output_lst_model_param_covid <- list(output_overall_mean_covid,output_alpha_covid,output_beta_covid,output_gamma_covid)
+
+output_lst_model_param_covid%>%
+   kable(caption = "Covid-19 Model Parameter Estimates") %>%
+   kable_styling(full_width = TRUE,position = "center")
+
+output_alpha_influenza<- data.frame("Alpha" = model_est_resid_influenza$Alpha)
+output_overall_mean_influenza <- data.frame("Overall_Mean" = model_est_resid_influenza$Overall_Mean)
+output_beta_influenza <- data.frame("Beta" = model_est_resid_influenza$Beta)
+output_gamma_influenza <- data.frame("Gamma" = model_est_resid_influenza$Gamma)
+output_lst_model_param_influenza <- list(output_overall_mean_influenza,output_alpha_influenza,output_beta_influenza,output_gamma_influenza)
+
+output_lst_model_param_influenza%>%
+   kable(caption = "Influenza Model Parameter Estimates") %>%
+   kable_styling(full_width = TRUE,position = "center")
+
+output_alpha_pneumonia <- data.frame("Alpha" = model_est_resid_pneumonia$Alpha)
+output_overall_mean_pneumonia <- data.frame("Overall_Mean" = model_est_resid_pneumonia$Overall_Mean)
+output_beta_pneumonia <- data.frame("Beta" = model_est_resid_pneumonia$Beta)
+output_gamma_pneumonia <- data.frame("Gamma" = model_est_resid_pneumonia$Gamma)
+output_lst_model_param_pneumonia <- list(output_overall_mean_pneumonia,output_alpha_pneumonia,output_beta_pneumonia,output_gamma_pneumonia)
+
+output_lst_model_param_pneumonia%>%
+   kable(caption = "Pneumonia Model Parameter Estimates") %>%
+   kable_styling(full_width = TRUE,position = "center")
+
+```
+
+
+
+## Model Diagnostics
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Residual Plot
+residual_plot_covid <- ggplot()+
+  geom_point(data = COVID19,aes(x = model_est_resid_covid$Yhat, y = model_est_resid_covid$Residuals ,shape = AgeGroup ,color = Sex ))+
+  xlab("Fitted Values")+ylab("Residuals")+scale_color_manual(values = c("lightblue","pink"),labels = c("Male","Female"))+
+  scale_shape_manual(values = c(15,16,17,18,19,20),labels = c("18-29 years","30-49 years","50-64 years","65-74 years","75-84 years","85 years and over"))+labs(title = "Covid-19")
+  
+
+
+response_values_covid <- c(rep(COVID19$Sex %>% levels %>% extract(1),6),rep(COVID19$Sex %>% levels %>% extract(2),6)) %>%
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("COVIDProp"))
+
+factor_means_covid <- c(rep(COVID19$Sex %>% levels %>% extract(1),6),rep(COVID19$Sex %>% levels %>% extract(2),6)) %>%
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("COVIDProp") %>% mean) %>% unlist
+
+fitted_values_covid <- c(1:12) %>% map2(c(rep(52,12)),~rep(factor_means_covid[.x],.y))
+
+residuals_covid <- response_values_covid %>% map2(fitted_values_covid,~.x - .y)
+
+
+residual_plot_covid <- residual_plot_covid + map2(fitted_values_covid,residuals_covid,~geom_segment(
+                                                           aes(x = .x %>% unique,y = .y %>% min,xend = .x %>% unique,
+                                                               yend = .y %>% max),alpha = 0.25))
+
+
+
+
+residual_plot_influenza <- ggplot()+
+  geom_point(data = COVID19,aes(x = model_est_resid_influenza$Yhat, y = model_est_resid_influenza$Residuals ,shape = AgeGroup ,color = Sex ))+
+  xlab("Fitted Values")+ylab("Residuals")+scale_color_manual(values = c("lightblue","pink"),labels = c("Male","Female"))+
+  scale_shape_manual(values = c(15,16,17,18,19,20),labels = c("18-29 years","30-49 years","50-64 years","65-74 years","75-84 years","85 years and over"))+labs(title = "Influenza")
+  
+
+
+response_values_influenza <- c(rep(COVID19$Sex %>% levels %>% extract(1),6),rep(COVID19$Sex %>% levels %>% extract(2),6)) %>% 
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("InfluenzaProp")) 
+
+factor_means_influenza <- c(rep(COVID19$Sex %>% levels %>% extract(1),6),rep(COVID19$Sex %>% levels %>% extract(2),6)) %>% 
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("InfluenzaProp") %>% mean) %>% unlist
+
+fitted_values_influenza <- c(1:12) %>% map2(c(rep(52,12)),~rep(factor_means_influenza[.x],.y)) 
+
+residuals_influenza <- response_values_influenza %>% map2(fitted_values_influenza,~.x - .y)
+
+
+residual_plot_influenza <- residual_plot_influenza + map2(fitted_values_influenza,residuals_influenza,~geom_segment(
+                                                           aes(x = .x %>% unique,y = .y %>% min,xend = .x %>% unique,
+                                                               yend = .y %>% max),alpha = 0.25))
+
+
+
+
+
+residual_plot_pneumonia <- ggplot()+
+  geom_point(data = COVID19,aes(x = model_est_resid_pneumonia$Yhat, y = model_est_resid_pneumonia$Residuals ,shape = AgeGroup ,color = Sex ))+
+  xlab("Fitted Values")+ylab("Residuals")+scale_color_manual(values = c("lightblue","pink"),labels = c("Male","Female"))+
+  scale_shape_manual(values = c(15,16,17,18,19,20),labels = c("18-29 years","30-49 years","50-64 years","65-74 years","75-84 years","85 years and over"))+labs(title = "Pneumonia")
+  
+
+
+response_values_pneumonia <- c(rep(COVID19$Sex %>% levels %>% extract(1),6),rep(COVID19$Sex %>% levels %>% extract(2),6)) %>% 
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("PneumoniaProp")) 
+
+factor_means_pneumonia <- c(rep(COVID19$Sex %>% levels %>% extract(1),6),rep(COVID19$Sex %>% levels %>% extract(2),6)) %>% 
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("PneumoniaProp") %>% mean) %>% unlist
+
+fitted_values_pneumonia <- c(1:12) %>% map2(c(rep(52,12)),~rep(factor_means_pneumonia[.x],.y)) 
+
+residuals_pneumonia <- response_values_pneumonia %>% map2(fitted_values_pneumonia,~.x - .y)
+
+
+residual_plot_pneumonia <- residual_plot_pneumonia + map2(fitted_values_pneumonia,residuals_pneumonia,~geom_segment(
+                                                           aes(x = .x %>% unique,y = .y %>% min,xend = .x %>% unique,
+                                                               yend = .y %>% max),alpha = 0.25))
+
+residual_plot_covid
+residual_plot_influenza
+residual_plot_pneumonia
+
+
+```
+
+From our residual plots, we can see that the variances for each treatment combination of age group and gender are similar in covid 19 and pneumonia Our equal variance assumption is not violated. However for Influenza the variance for the first group is zero since all of the values are zero. This group is vastly different from the other groups so this violates the constant variance assumption.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# QQ Plot
+e_standard_covid <- model_est_resid_covid$Residuals - (model_est_resid_covid$Residuals %>% mean)
+e_standard_covid <- e_standard_covid/model_est_resid_covid$Residuals %>% sd
+
+qq_plot_covid <- ggplot(mapping = aes(sample = e_standard_covid)) + geom_qq()+geom_qq_line(col = 2)+
+  labs(title = "Covid-19 Normal Q-Q Plot")+xlab("Theoretical Quantiles")+
+  ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())
+
+
+
+e_standard_influenza <- model_est_resid_influenza$Residuals - (model_est_resid_influenza$Residuals %>% mean)
+e_standard_influenza <- e_standard_influenza/model_est_resid_influenza$Residuals %>% sd
+
+qq_plot_influenza <- ggplot(mapping = aes(sample = e_standard_influenza)) + geom_qq()+geom_qq_line(col = 2)+
+  labs(title = "Influenza Normal Q-Q Plot")+xlab("Theoretical Quantiles")+
+  ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())
+
+
+
+e_standard_pneumonia <- model_est_resid_pneumonia$Residuals - (model_est_resid_pneumonia$Residuals %>% mean)
+e_standard_pneumonia <- e_standard_pneumonia/model_est_resid_pneumonia$Residuals %>% sd
+
+qq_plot_pneumonia <- ggplot(mapping = aes(sample = e_standard_pneumonia)) + geom_qq()+geom_qq_line(col = 2)+
+  labs(title = "Pneumonia Normal Q-Q Plot")+xlab("Theoretical Quantiles")+
+  ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())
+
+qq_plot_covid
+qq_plot_influenza
+qq_plot_pneumonia
+
+```
+
+As we can see from our normal qq plots for Covid 19 and pneumonia, we can see that most of the points are on the linear line. This suggests the data for the Covid 19 and pneumonia proportion of deaths is normally distributed.
+However, in the normal qq plot for influenza, we can see that most of the points are not on the linear line and is heavily tailed on the left side. This suggests the data for the influenza proportion of deaths is not normally distributed. We will not continue to study influenza as it violates our model assumptions. 
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Interaction Plot
+COVID19 %<>% group_by(AgeGroup,Sex)
+
+interaction_plot_covid <- ggplot(data =COVID19,aes(AgeGroup,COVIDProp,color = Sex,group = Sex)) +
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  ylab("Mean Proportion of Deaths")+
+  xlab("Factor A: Age Group" )+
+  labs(color = "Factor B: Sex",title = "Covid-19")+
+  scale_x_discrete(labels = c("18-29 years","30-49 years","50-64 years","65-74 years","75-84 years","85 years and over"))+
+  scale_color_manual(labels = c("Male","Female"),values = c("#7AD7F0","#FF69B4"))
+
+
+interaction_plot_influenza <- ggplot(data =COVID19,aes(AgeGroup,InfluenzaProp,color = Sex,group = Sex)) +
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  ylab("Mean Proportion of Deaths")+
+  xlab("Factor A: Age Group" )+
+  labs(color = "Factor B: Sex",title = "Influenza")+
+  scale_x_discrete(labels = c("18-29 years","30-49 years","50-64 years","65-74 years","75-84 years","85 years and over"))+
+  scale_color_manual(labels = c("Male","Female"),values = c("#7AD7F0","#FF69B4"))
+
+
+interaction_plot_pneumonia <- ggplot(data =COVID19,aes(AgeGroup,PneumoniaProp,color = Sex,group = Sex)) +
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  ylab("Mean Proportion of Deaths")+
+  xlab("Factor A: Age Group" )+
+  labs(color = "Factor B: Sex",title = "Pneumonia")+
+  scale_x_discrete(labels = c("18-29 years","30-49 years","50-64 years","65-74 years","75-84 years","85 years and over"))+
+  scale_color_manual(labels = c("Male","Female"),values = c("#7AD7F0","#FF69B4"))
+
+interaction_plot_covid
+interaction_plot_influenza
+interaction_plot_pneumonia
+
+
+COVID19 %<>% ungroup
+
+```
+
+From the interaction plots for Covid 19, influenza, and pneumonia proportion of deaths, we can see that the Covid 19 interaction plot has no interaction effect since the lines are close to parallel. There is Factor A effect since the mean line is not horizontal. There is Factor B effect since the means of the lines are not at the same level. We will test this further.
+
+We can see that the influenza interaction plot has interaction effect since the lines intersect. We can also see that there is Factor A effect since the mean line is not horizontal. There is Factor B effect since the means of the lines are not at the same level. 
+
+We can see that the pneumonia interaction plot seems to have no interaction plot as the lines are closely parallel. We can also see that there is Factor A effect since the mean line is not horizontal. There is Factor B effect since the means of the lines are not at the same level. 
+
+
+## Formal Analysis of Main Factor and Interaction Effects
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Anova Table Function
+Anova.Table <- function(a,b,n,u,e,Yhat,alpha,beta,gamma,Y,factorA,factorB){
+SSA = n*b*sum(alpha^2)
+SSB = n*a*sum(beta^2)
+SSAB = n*sum(gamma^2)
+
+SSE = sum((Y-Yhat)^2)
+SSTotal = sum((Y-u)^2)
+AnovaTable = matrix(0,nrow = 5,ncol = 3)
+AnovaTable[1,1] = SSA
+AnovaTable[1,2] = a-1
+AnovaTable[1,3] = SSA/(a-1)
+AnovaTable[2,1] = SSB
+AnovaTable[2,2] = b-1
+AnovaTable[2,3] = SSB/(b-1)
+AnovaTable[3,1] = SSAB
+AnovaTable[3,2] = (a-1)*(b-1)
+AnovaTable[3,3] = SSAB/((a-1)*(b-1))
+AnovaTable[4,1] = SSE
+AnovaTable[4,2] = a*b*(n-1)
+AnovaTable[4,3] = SSE/(a*b*(n-1))
+AnovaTable[5,1] = SSTotal
+AnovaTable[5,2] = n*a*b-1
+AnovaTable[5,3] = NA
+AnovaTable = as.data.frame(AnovaTable)
+rownames(AnovaTable) = c('Factor A','Factor B','AB Interaction','Error','Total')
+colnames(AnovaTable) = c('SS','df','MS')
+AnovaTable$SS %<>% as.numeric
+AnovaTable$MS %<>% as.numeric
+AnovaTable$df %<>% as.numeric
+return(AnovaTable)
+}
+
+AnovaTable_covid <- Anova.Table(a,b,n,model_est_resid_covid$Overall_Mean,model_est_resid_covid$Residuals,
+                          model_est_resid_covid$Yhat,model_est_resid_covid$Alpha,model_est_resid_covid$Beta,
+                          model_est_resid_covid$Gamma,Y,factorA,factorB)
+AnovaTable_pneumonia <- Anova.Table(a,b,n,model_est_resid_pneumonia$Overall_Mean,model_est_resid_pneumonia$Residuals,
+                          model_est_resid_pneumonia$Yhat,model_est_resid_pneumonia$Alpha,model_est_resid_pneumonia$Beta,
+                          model_est_resid_pneumonia$Gamma,P,factorA,factorB)
+
+output_lst_anova_table <- list(AnovaTable_covid,AnovaTable_pneumonia)
+output_lst_anova_table %>% 
+   kable(caption = "Covid-19 and Pneumonia Anova Table") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = TRUE,position = "center")
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# F test for Interaction/Factor A/Factor B effects
+
+F_Test_Effects <- function(anova_table,alpha){
+  test_stat_interact <- anova_table["AB Interaction","MS"]/anova_table["Error","MS"]
+  critical_value_interact <- qf(1-alpha,anova_table["AB Interaction","df"],anova_table["Error","df"])
+  p_value_interact <- pf(test_stat_interact,anova_table["AB Interaction","df"],anova_table["Error","df"],lower.tail = FALSE)
+  F_test_df_interact <- data.frame("F_Statistic" = test_stat_interact,"F_Critical_Value" = critical_value_interact,"P_Value" = p_value_interact)
+
+  test_stat_a <- anova_table["Factor A","MS"]/anova_table["Error","MS"]
+  critical_value_a <- qf(1-alpha,anova_table["Factor A","df"],anova_table["Error","df"])
+  p_value_a <- pf(test_stat_a,anova_table["Factor A","df"],anova_table["Error","df"],lower.tail = FALSE)
+  F_test_df_a <- data.frame("F_Statistic" = test_stat_a,"F_Critical_Value" = critical_value_a,"P_Value" = p_value_a)
+
+  test_stat_b <- anova_table["Factor B","MS"]/anova_table["Error","MS"]
+  critical_value_b <- qf(1-alpha,anova_table["Factor B","df"],anova_table["Error","df"])
+  p_value_b <- pf(test_stat_b,anova_table["Factor B","df"],anova_table["Error","df"],lower.tail = FALSE)
+  F_test_df_b <- data.frame("F_Statistic" = test_stat_b,"F_Critical_Value" = critical_value_b,"P_Value" = p_value_b)
+  
+  F_test_df <- rbind(F_test_df_interact,F_test_df_a,F_test_df_b)
+  rownames(F_test_df) <- c("Interaction","Factor A Effect","Factor B Effect")
+  return(F_test_df)
+}
+
+F_tests_covid <- F_Test_Effects(AnovaTable_covid,0.05)
+F_tests_pneumonia <- F_Test_Effects(AnovaTable_pneumonia,0.05)
+
+
+F_tests_covid %>% 
+   kable(caption = "Covid-19 F-Tests for Effects") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = TRUE,position = "center")
+
+F_tests_pneumonia %>% 
+   kable(caption = "Pneumonia F-Tests for Effects") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = TRUE,position = "center")
+
+
+```
+
+Covid 19
+
+Test for Interaction Effect
+
+$H_o: \gamma_{ij} = 0\space i = 1,2,3,4,5,6; j = 1,2$
+
+$H_a: Not \space all \space \gamma_{ij's} = 0$
+
+Test Statistic: $F^* = MSAB/MSE = (SSAB/(a-1)(b-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 11,612 }$
+
+Conclusion: Since the test statistic is less than the critical value, we fail to reject the null hypothesis at the 0.05 significance level and think that there is no interaction effect present in our study. 
+
+
+Test for Factor A effect
+
+$H_o: \alpha_1 = \alpha_2 = \alpha_3 = \alpha_4 = \alpha_5 = \alpha_6$
+
+$H_a:$ Not all $\alpha_i$ equal to 0
+
+Test Statistic: $F^* = MSA/MSE = (SSA/(a-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 5, 612 }$
+
+This is our function in order to test for the factor A effect. The test statistic will divide the mean squared of Factor A by its mean squared error (MSE). Our critical value will be based on the qf function for the degrees of freedom of Factor A and error. We solve the p-value in a similar way and we finally end with a data frame containing the p-value, critical value and test statistic. This function allows us to input our ANOVA table values and our significance level of 0.05
+
+Conclusion: Since the test statistic is greater than the critical value, we reject the null hypothesis at the 5% significance level and think that there is factor A effect (Age group) in our study.
+
+Test for Factor B effect
+
+$H_o: \beta_1 = \beta_2$
+
+$H_a:$ Not all $\beta_i$ equal to 0
+
+Test Statistic: $F^* = MSB/MSE = (SSB/(b-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 1, 612}$
+
+This is our function in order to test for the factor B effect. The test statistic will divide the mean squared of Factor B by its mean squared error (MSE). Our critical value will be based on the qf function for the degrees of freedom of Factor B and error. We solve the p-value in a similar way and we finally end with a data frame containing the p-value, critical value and test statistic. This function allows us to input our ANOVA table values and our significance level of 0.05.
+
+Conclusion: Since the test statistic is greater than the critical value, we reject the null hypothesis at the 0.05 significance level and think that there is factor B effect (Sex) in our study.
+
+Pneumonia 
+
+Test for Interaction Effect
+
+$H_o: \gamma_{ij} = 0\space i = 1,2,3,4,5,6; j = 1,2$
+
+$H_a: Not \space all \space \gamma_{ij's} = 0$
+
+Test Statistic: $F^* = MSAB/MSE = (SSAB/(a-1)(b-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 11,612 }$
+
+Conclusion: Since the test statistic is less than the critical value, we fail to reject the null hypothesis at the 0.05 significance level and think that there is no interaction effect present in our study. 
+
+
+Test for Factor A effect
+
+$H_o: \alpha_1 = \alpha_2 = \alpha_3 = \alpha_4 = \alpha_5 = \alpha_6$
+
+$H_a:$ Not all $\alpha_i$ equal to 0
+
+Test Statistic: $F^* = MSA/MSE = (SSA/(a-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 5, 612 }$
+
+This is our function in order to test for the factor A effect. The test statistic will divide the mean squared of Factor A by its mean squared error (MSE). Our critical value will be based on the qf function for the degrees of freedom of Factor A and error. We solve the p-value in a similar way and we finally end with a data frame containing the p-value, critical value and test statistic. This function allows us to input our ANOVA table values and our significance level of 0.05
+
+Conclusion: Since the test statistic is greater than the critical value, we reject the null hypothesis at the 0.05 significance level and think that there is factor A effect (Age group) in our study.
+
+Test for Factor B effect
+
+$H_o: \beta_1 = \beta_2$
+
+$H_a:$ Not all $\beta_i$ equal to 0
+
+Test Statistic: $F^* = MSB/MSE = (SSB/(b-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 1, 612}$
+
+This is our function in order to test for the factor B effect. The test statistic will divide the mean squared of Factor B by its mean squared error (MSE). Our critical value will be based on the qf function for the degrees of freedom of Factor B and error. We solve the p-value in a similar way and we finally end with a data frame containing the p-value, critical value and test statistic. This function allows us to input our ANOVA table values and our significance level of 0.05.
+
+Conclusion: Since the test statistic is less than the critical value, we fail to reject the null hypothesis at the 0.05 significance level and conclude that there is no factor B effect (Sex) in our study.
+
+
+
+## Factor Mean Estimates
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+factor_mean_CI <- function(AnovaTable,alpha,a,b,n,Yijbar,factor_a_level,factor_b_level){
+  uhat = Yijbar[factor_a_level,factor_b_level]
+se = sqrt(AnovaTable["Error","MS"]/n)
+multiplier = qt(1-alpha/2,df=a*b*(n-1))
+CI = c(uhat-multiplier*se,uhat+multiplier*se)
+return(CI)
+}
+
+
+factor_mean_CIs_males_covid <- 1:6 %>% map2(rep(1,6),~factor_mean_CI(AnovaTable_covid,0.05,a,b,n,model_est_resid_covid$Yijbar,.x,.y))
+factor_mean_CIs_males_covid <- do.call(rbind,factor_mean_CIs_males_covid) %>% as.data.frame()
+colnames(factor_mean_CIs_males_covid) <- c("Lower Bound","Upper Bound")
+rownames(factor_mean_CIs_males_covid) <- 1:6 %>% map2(rep(1,6),~paste0("u",.x,.y))
+
+factor_mean_CIs_males_pneumonia <- 1:6 %>% map2(rep(1,6),~factor_mean_CI(AnovaTable_pneumonia,0.05,a,b,n,model_est_resid_pneumonia$Yijbar,.x,.y))
+factor_mean_CIs_males_pneumonia <- do.call(rbind,factor_mean_CIs_males_pneumonia) %>% as.data.frame()
+colnames(factor_mean_CIs_males_pneumonia) <- c("Lower Bound","Upper Bound")
+rownames(factor_mean_CIs_males_pneumonia) <- 1:6 %>% map2(rep(1,6),~paste0("u",.x,.y))
+
+factor_mean_CIs_males_covid[] <- lapply(factor_mean_CIs_males_covid,function(y) y^2 )
+factor_mean_CIs_males_pneumonia[] <- lapply(factor_mean_CIs_males_pneumonia,function(y) y^2 )
+
+factor_mean_CIs_females_covid <- 1:6 %>% map2(rep(2,6),~factor_mean_CI(AnovaTable_covid,0.05,a,b,n,model_est_resid_covid$Yijbar,.x,.y))
+factor_mean_CIs_females_covid <- do.call(rbind,factor_mean_CIs_females_covid) %>% as.data.frame()
+colnames(factor_mean_CIs_females_covid) <- c("Lower Bound","Upper Bound")
+rownames(factor_mean_CIs_females_covid) <- 1:6 %>% map2(rep(2,6),~paste0("u",.x,.y))
+
+factor_mean_CIs_females_pneumonia <- 1:6 %>% map2(rep(2,6),~factor_mean_CI(AnovaTable_pneumonia,0.05,a,b,n,model_est_resid_pneumonia$Yijbar,.x,.y))
+factor_mean_CIs_females_pneumonia <- do.call(rbind,factor_mean_CIs_females_pneumonia) %>% as.data.frame()
+colnames(factor_mean_CIs_females_pneumonia) <- c("Lower Bound","Upper Bound")
+rownames(factor_mean_CIs_females_pneumonia) <- 1:6 %>% map2(rep(2,6),~paste0("u",.x,.y))
+
+factor_mean_CIs_females_covid[] <- lapply(factor_mean_CIs_females_covid,function(y) y^2 )
+factor_mean_CIs_females_pneumonia[] <- lapply(factor_mean_CIs_females_pneumonia,function(y) y^2 )
+
+
+output_lst_factor_mean_CI_covid <- list(factor_mean_CIs_males_covid,factor_mean_CIs_females_covid)
+output_lst_factor_mean_CI_covid%>% 
+   kable(caption = "Covid-19 Male and Female Factor Mean Confidence Intervals") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = TRUE,position = "center")
+
+output_lst_factor_mean_CI_pneumonia <- list(factor_mean_CIs_males_pneumonia,factor_mean_CIs_females_pneumonia)
+output_lst_factor_mean_CI_pneumonia%>% 
+   kable(caption = "Pneumonia Male and Female Factor Mean Confidence Intervals") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = TRUE,position = "center")
+
+```
+
+Covid 19
+
+Male
+
+We are 95% confident that the true mean Covid 19 proportions of death for 18-29 years old who are male is between 0.0003592 and 0.0046095.
+
+We are 95% confident that the true mean Covid 19 proportions of death for 30-49 years old who are male is between 0.0261013 and 0.0443105.
+
+
+We are 95% confident that the true mean Covid 19 proportions of death for 50-64 years old who are male is between 0.0471147 and 0.0707565.
+
+We are 95% confident that the true mean Covid 19 proportions of death for 65-74 years old who are male is between 0.0622769 and 0.0890993.
+
+We are 95% confident that the true mean Covid 19 proportions of death for 75-84 years old who are male is between 0.0692211 and 0.0973694.
+
+We are 95% confident that the true mean Covid 19 proportions of death for 85 years and older who are male is between 0.0630930 and 0.0900750.
+
+
+Female
+
+
+We are 95% confident that the true mean Covid 19 proportions of death for 18-29 years old who are female is between 0.0003568 and 0.0046011.
+
+We are 95% confident that the true mean Covid 19 proportions of death for 30-49 years old who are female is between 0.0168993 and 0.0320192.
+
+We are 95% confident that the true mean Covid 19 proportions of death for 50-64 years old who are female is between 0.0409434 and 0.0631449.
+
+We are 95% confident that the true mean Covid 19 proportions of death for 65-74 years old who are female is between 0.0527491 and 0.0776255.
+
+We are 95% confident that the true mean Covid 19 proportions of death for 75-84 years old who are female is between 0.0575533 and 0.0834311.
+
+We are 95% confident that the true mean Covid 19 proportions of death for 85 years and older who are female is between 0.0579880 and 0.0839543.
+
+Pneumonia 
+
+Male 
+
+We are 95% confident that the true mean pneumonia proportions of death for 18-29 years old who are male is between 0.0016339 and 0.0086253.
+
+We are 95% confident that the true mean pneumonia proportions of death for 30-49 years old who are male is between 0.027957 and 0.0482489.
+
+We are 95% confident that the true mean pneumonia proportions of death for 50-64 years old who are male is between 0.062021 and 0.0908977.
+
+We are 95% confident that the true mean pneumonia proportions of death for 65-74 years old who are male is between 0.0792087 and 0.1114837.
+
+We are 95% confident that the true mean pneumonia proportions of death for 75-84 years old who are male is between 0.0863118 and 0.1198822.
+
+We are 95% confident that the true mean pneumonia proportions of death for 85 years and older who are male is between 0.0819341 and 0.1147128.
+
+
+Female:
+
+
+We are 95% confident that the true mean pneumonia proportions of death for 18-29 years old who are female is between 0.0019415 and 0.0093149.
+
+We are 95% confident that the true mean pneumonia proportions of death for 30-49 years old who are female is between 0.028838 and 0.049404.
+
+We are 95% confident that the true mean pneumonia proportions of death for 50-64 years old who are female is between 0.066379 and 0.0961580.
+
+We are 95% confident that the true mean pneumonia proportions of death for 65-74 years old who are female is between 0.0750540 and 0.1065443.
+
+We are 95% confident that the true mean pneumonia proportions of death for 75-84 years old who are female is between 0.0726316 and 0.1036544.
+
+We are 95% confident that the true mean pneumonia proportions of death for 85 years and older who are female is between 0.0599460 and 0.0883815.
+
+
+## Factor A and Factor B Family Pairwise Comparisons 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+both_factor_cis <- function(model_estimates_list,alpha.level,AnovaTable,a,b,n,method,g,parameter1_a,parameter2_a,parameter1_b,parameter2_b){
+  
+  estimates_a <- parameter1_a %>% map2(parameter2_a,~model_estimates_list$Alpha[.x] - model_estimates_list$Alpha[.y])
+  se_a <- sqrt(2*AnovaTable["Error","MS"]/(b*n))
+ 
+   
+  estimates_b <- parameter1_b %>% map2(parameter2_b,~model_estimates_list$Beta[.x] - model_estimates_list$Beta[.y])
+  se_b <- sqrt(2*AnovaTable["Error","MS"]/(a*n))
+  
+   
+B <- qt(1-alpha.level/(2*g),a*b*(n-1))
+Tukey_Bon_a = 1/sqrt(2)*qtukey(1-alpha.level/2,a,a*b*(n-1))
+Tukey_Bon_b= 1/sqrt(2)*qtukey(1-alpha.level/2,b,a*b*(n-1))
+Scheffe = sqrt((a+b-2)*qf(1-alpha.level,a+b-2,(n-1)*a*b))
+Scheffe_Bon_a = sqrt((a-1)*qf(1-alpha.level/2,a-1,(n-1)*a*b))
+Scheffe_Bon_b = sqrt((b-1)*qf(1-alpha.level/2,b-1,(n-1)*a*b))
+
+
+compare_methods <- data.frame("Methods" = c("Bonferroni","Tukey-Bonferroni Factor A","Tukey-Bonferroni Factor B","Scheffe","Scheffe-Bonferroni Factor A","Scheffe-Bonferroni Factor B"),"Multipliers" = c(B,Tukey_Bon_a,Tukey_Bon_b,Scheffe,Scheffe_Bon_a,Scheffe_Bon_b))
+
+ if(method == "Bonferroni"){
+ multiplier_a <- B 
+ multiplier_b <- B 
+ }
+ else if(method == "Tukey-Bonferroni"){
+ multiplier_a <- Tukey_Bon_a 
+ multiplier_b <- Tukey_Bon_b 
+ }
+ else if(method == "Scheffe"){
+   multiplier_a <- Scheffe
+   multiplier_b <- Scheffe
+ }
+else if(method == "Scheffe-Bonferroni"){
+  multiplier_a <- Scheffe_Bon_a
+  multiplier_b <- Scheffe_Bon_b
+}
+ else{
+   return("Invalid Method")
+ }
+
+CI_s_a = estimates_a %>% map(~c(.x - multiplier_a*se_a, .x + multiplier_a*se_a))
+CI_s_a <- do.call(rbind,CI_s_a) %>% as.data.frame()
+colnames(CI_s_a) <- c("Lower Bound","Upper Bound")
+rownames(CI_s_a) <- parameter1_a %>% map2_chr(parameter2_a,~paste0("u",.x,".","-","u",.y,".")) 
+
+
+CI_s_b = estimates_b %>% map(~c(.x - multiplier_b*se_b, .x + multiplier_b*se_b))
+CI_s_b <- do.call(rbind,CI_s_b) %>% as.data.frame()
+colnames(CI_s_b) <- c("Lower Bound","Upper Bound")
+rownames(CI_s_b) <- parameter1_b %>% map2_chr(parameter2_b,~paste0("u",".",.x,"-","u",".",.y)) 
+
+output_lst <- list("Methods" = compare_methods,"CIs_a" = CI_s_a,"CIs_b" = CI_s_b)
+return(output_lst)
+}
+
+both_cis_covid <- both_factor_cis(model_est_resid_covid,0.05,AnovaTable_covid,a,b,n,"Bonferroni",16, 
+                            c(1,1,1,1,1,2,2,2,2,3,3,3,4,4,5),c(2,3,4,5,6,3,4,5,6,4,5,6,5,6,6),c(1),c(2))
+
+
+both_cis_covid$CIs_a %<>% select("Upper Bound","Lower Bound")
+colnames(both_cis_covid$CIs_a) <- c("Lower Bound","Upper Bound")
+both_cis_covid$CIs_a[] <- lapply(both_cis_covid$CIs_a,function(y) y^2)
+ 
+temp_covid = both_cis_covid$CIs_a["u5.-u6.", "Upper Bound"] 
+both_cis_covid$CIs_a["u5.-u6.", "Upper Bound"] = both_cis_covid$CIs_a["u5.-u6.", "Lower Bound"] 
+both_cis_covid$CIs_a["u5.-u6.", "Lower Bound"] = temp_covid 
+
+both_cis_pneumonia <- both_factor_cis(model_est_resid_pneumonia,0.05,AnovaTable_pneumonia,a,b,n,"Bonferroni",16, 
+                            c(1,1,1,1,1,2,2,2,2,3,3,3,4,4,5),c(2,3,4,5,6,3,4,5,6,4,5,6,5,6,6),c(1),c(2))
+
+both_cis_pneumonia$CIs_a %<>% select("Upper Bound","Lower Bound")
+colnames(both_cis_pneumonia$CIs_a) <- c("Lower Bound","Upper Bound")
+both_cis_pneumonia$CIs_a[] <- lapply(both_cis_pneumonia$CIs_a,function(y) y^2)
+ 
+temp_pneumonia = both_cis_pneumonia$CIs_a["u5.-u6.", "Upper Bound"] 
+both_cis_pneumonia$CIs_a["u5.-u6.", "Upper Bound"] = both_cis_pneumonia$CIs_a["u5.-u6.", "Lower Bound"] 
+both_cis_pneumonia$CIs_a["u5.-u6.", "Lower Bound"] = temp_pneumonia 
+
+temp_pneumonia = both_cis_pneumonia$CIs_a["u4.-u6.", "Upper Bound"] 
+both_cis_pneumonia$CIs_a["u4.-u6.", "Upper Bound"] = both_cis_pneumonia$CIs_a["u4.-u6.", "Lower Bound"] 
+both_cis_pneumonia$CIs_a["u4.-u6.", "Lower Bound"] = temp_pneumonia 
+
+
+
+output_lst_both_cis_a <- list(both_cis_covid$CIs_a,both_cis_pneumonia$CIs_a)
+output_lst_both_cis_b <- list(both_cis_covid$CIs_b,both_cis_pneumonia$CIs_b)
+
+
+
+both_cis_covid$Methods %>% 
+   kable(caption = "Methods") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+output_lst_both_cis_a %>% 
+   kable(caption = "Factor A: Age Covid-19 and Pneumonia Group Pariwise Comparison Confidence Intervals") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+output_lst_both_cis_b %>% 
+   kable(caption = "Factor B: Sex Covid-19 and Pneumonia Pairwise Comparison Confidence Intervals") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+Since the smallest multiplier is in Tukey-Bonferroni procedure, but Tukey-Bonferroni Factor A is larger than the Bonferroni multiplier, we can choose the procedure of our choice. We decided to go with the Bonferroni procedure. 
+
+We are 95% confident that the true mean difference of the Covid 19 and pneumonia proportion of deaths for Factor A (Age Group) and Factor B(Sex) is as follows. 
+
+# Analysis of the Three Oldest Age Groups
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Inital Data Prep 
+COVID19 = read.table("COVID19.txt", header = T, sep = "\t")
+COVID19[652,c(5:7)] = 0
+COVID19$AgeGroup %<>%  as.factor
+COVID19$Sex %<>%  as.factor
+COVID19$AgeGroup = factor(COVID19$AgeGroup,levels(COVID19$AgeGroup),1:7)
+# 2 is female 1 is Male
+COVID19$Sex = factor(COVID19$Sex,COVID19$Sex %>% levels,2:1) 
+COVID19 %<>% filter( AgeGroup == 5 | AgeGroup == 6 | AgeGroup == 7)
+COVID19$AgeGroup = factor(COVID19$AgeGroup,5:7,1:3)
+COVID19$COVIDProp <- COVID19$COVIDProp %>% sqrt
+COVID19$InfluenzaProp <- COVID19$InfluenzaProp %>% sqrt
+COVID19$PneumoniaProp<- COVID19$PneumoniaProp %>% sqrt
+```
+
+We do a square root transformation as done previously in the beginning of our study. 
+
+## Model Estimates
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## Calculating Least Square Estimates
+
+# Model Estimates and Residuals
+Y = COVID19$COVIDProp
+I <- COVID19$InfluenzaProp
+P <- COVID19$PneumoniaProp
+factorA = COVID19$AgeGroup
+factorB = COVID19$Sex
+a = factorA %>% levels %>% length 
+b = factorB %>% levels %>% length 
+n = 52
+
+model_est_resid_covid <- model_estimates(a,b,factorA,factorB,Y)
+model_est_resid_influenza <- model_estimates(a,b,factorA,factorB,I)
+model_est_resid_pneumonia <- model_estimates(a,b,factorA,factorB,P)
+
+
+output_alpha_covid <- data.frame("Alpha" = model_est_resid_covid$Alpha)
+output_overall_mean_covid <- data.frame("Overall_Mean" = model_est_resid_covid$Overall_Mean)
+output_beta_covid <- data.frame("Beta" = model_est_resid_covid$Beta)
+output_gamma_covid <- data.frame("Gamma" = model_est_resid_covid$Gamma)
+output_lst_model_param_covid <- list(output_overall_mean_covid,output_alpha_covid,output_beta_covid,output_gamma_covid)
+
+output_lst_model_param_covid%>%
+   kable(caption = "Covid-19 Model Parameter Estimates") %>%
+   kable_styling(full_width = TRUE,position = "center")
+
+output_alpha_influenza<- data.frame("Alpha" = model_est_resid_influenza$Alpha)
+output_overall_mean_influenza <- data.frame("Overall_Mean" = model_est_resid_influenza$Overall_Mean)
+output_beta_influenza <- data.frame("Beta" = model_est_resid_influenza$Beta)
+output_gamma_influenza <- data.frame("Gamma" = model_est_resid_influenza$Gamma)
+output_lst_model_param_influenza <- list(output_overall_mean_influenza,output_alpha_influenza,output_beta_influenza,output_gamma_influenza)
+
+output_lst_model_param_influenza%>%
+   kable(caption = "Influenza Model Parameter Estimates") %>%
+   kable_styling(full_width = TRUE,position = "center")
+
+output_alpha_pneumonia <- data.frame("Alpha" = model_est_resid_pneumonia$Alpha)
+output_overall_mean_pneumonia <- data.frame("Overall_Mean" = model_est_resid_pneumonia$Overall_Mean)
+output_beta_pneumonia <- data.frame("Beta" = model_est_resid_pneumonia$Beta)
+output_gamma_pneumonia <- data.frame("Gamma" = model_est_resid_pneumonia$Gamma)
+output_lst_model_param_pneumonia <- list(output_overall_mean_pneumonia,output_alpha_pneumonia,output_beta_pneumonia,output_gamma_pneumonia)
+
+output_lst_model_param_pneumonia%>%
+   kable(caption = "Pneumonia Model Parameter Estimates") %>%
+   kable_styling(full_width = TRUE,position = "center")
+```
+
+## Model Diagnostics
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Residual Plot
+residual_plot_covid <- ggplot()+
+  geom_point(data = COVID19,aes(x = model_est_resid_covid$Yhat, y = model_est_resid_covid$Residuals ,shape = AgeGroup ,color = Sex ))+
+  xlab("Fitted Values")+ylab("Residuals")+scale_color_manual(values = c("lightblue","pink"),labels = c("Male","Female"))+
+  scale_shape_manual(values = c(18,19,20),labels = c("65-74 years","75-84 years","85 years and over"))+labs(title = "Covid-19")
+  
+
+
+response_values_covid <- c(rep(COVID19$Sex %>% levels %>% extract(1),3),rep(COVID19$Sex %>% levels %>% extract(2),3)) %>% 
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("COVIDProp")) 
+
+factor_means_covid <- c(rep(COVID19$Sex %>% levels %>% extract(1),3),rep(COVID19$Sex %>% levels %>% extract(2),3)) %>% 
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("COVIDProp") %>% mean) %>% unlist
+
+fitted_values_covid <- c(1:6) %>% map2(c(rep(52,6)),~rep(factor_means_covid[.x],.y)) 
+
+residuals_covid <- response_values_covid %>% map2(fitted_values_covid,~.x - .y)
+
+
+residual_plot_covid <- residual_plot_covid + map2(fitted_values_covid,residuals_covid,~geom_segment(
+                                                           aes(x = .x %>% unique,y = .y %>% min,xend = .x %>% unique,
+                                                               yend = .y %>% max),alpha = 0.25))
+
+
+
+
+residual_plot_influenza <- ggplot()+
+  geom_point(data = COVID19,aes(x = model_est_resid_influenza$Yhat, y = model_est_resid_influenza$Residuals ,shape = AgeGroup ,color = Sex ))+
+  xlab("Fitted Values")+ylab("Residuals")+scale_color_manual(values = c("lightblue","pink"),labels = c("Male","Female"))+
+  scale_shape_manual(values = c(18,19,20),labels = c("65-74 years","75-84 years","85 years and over"))+labs(title = "Influenza")
+  
+
+
+response_values_influenza <- c(rep(COVID19$Sex %>% levels %>% extract(1),3),rep(COVID19$Sex %>% levels %>% extract(2),3)) %>% 
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("InfluenzaProp")) 
+
+factor_means_influenza <- c(rep(COVID19$Sex %>% levels %>% extract(1),3),rep(COVID19$Sex %>% levels %>% extract(2),3)) %>% 
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("InfluenzaProp") %>% mean) %>% unlist
+
+fitted_values_influenza <- c(1:6) %>% map2(c(rep(52,6)),~rep(factor_means_influenza[.x],.y)) 
+
+residuals_influenza <- response_values_influenza %>% map2(fitted_values_influenza,~.x - .y)
+
+
+residual_plot_influenza <- residual_plot_influenza + map2(fitted_values_influenza,residuals_influenza,~geom_segment(
+                                                           aes(x = .x %>% unique,y = .y %>% min,xend = .x %>% unique,
+                                                               yend = .y %>% max),alpha = 0.25))
+
+
+
+
+
+residual_plot_pneumonia <- ggplot()+
+  geom_point(data = COVID19,aes(x = model_est_resid_pneumonia$Yhat, y = model_est_resid_pneumonia$Residuals ,shape = AgeGroup ,color = Sex ))+
+  xlab("Fitted Values")+ylab("Residuals")+scale_color_manual(values = c("lightblue","pink"),labels = c("Male","Female"))+
+  scale_shape_manual(values = c(18,19,20),labels = c("65-74 years","75-84 years","85 years and over"))+labs(title = "Pneumonia")
+  
+
+
+response_values_pneumonia <- c(rep(COVID19$Sex %>% levels %>% extract(1),3),rep(COVID19$Sex %>% levels %>% extract(2),3)) %>% 
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("PneumoniaProp")) 
+
+factor_means_pneumonia <- c(rep(COVID19$Sex %>% levels %>% extract(1),3),rep(COVID19$Sex %>% levels %>% extract(2),3)) %>% 
+         map2(rep(COVID19$AgeGroup %>% levels,2),~COVID19 %>%
+         filter(Sex == .x,AgeGroup == .y) %>% extract2("PneumoniaProp") %>% mean) %>% unlist
+
+fitted_values_pneumonia <- c(1:6) %>% map2(c(rep(52,6)),~rep(factor_means_pneumonia[.x],.y)) 
+
+residuals_pneumonia <- response_values_pneumonia %>% map2(fitted_values_pneumonia,~.x - .y)
+
+
+residual_plot_pneumonia <- residual_plot_pneumonia + map2(fitted_values_pneumonia,residuals_pneumonia,~geom_segment(
+                                                           aes(x = .x %>% unique,y = .y %>% min,xend = .x %>% unique,
+                                                               yend = .y %>% max),alpha = 0.25))
+residual_plot_covid
+residual_plot_influenza
+residual_plot_pneumonia
+```
+
+From our residual plots, we can see that the variances for each treatment combination of age group and gender are similar in covid 19, influenza, and pneumonia Our equal variance assumption is not violated.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# QQ Plot
+e_standard_covid <- model_est_resid_covid$Residuals - (model_est_resid_covid$Residuals %>% mean)
+e_standard_covid <- e_standard_covid/model_est_resid_covid$Residuals %>% sd
+
+qq_plot_covid <- ggplot(mapping = aes(sample = e_standard_covid)) + geom_qq()+geom_qq_line(col = 2)+
+  labs(title = "Covid-19 Normal Q-Q Plot")+xlab("Theoretical Quantiles")+
+  ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())
+
+
+
+e_standard_influenza <- model_est_resid_influenza$Residuals - (model_est_resid_influenza$Residuals %>% mean)
+e_standard_influenza <- e_standard_influenza/model_est_resid_influenza$Residuals %>% sd
+
+qq_plot_influenza <- ggplot(mapping = aes(sample = e_standard_influenza)) + geom_qq()+geom_qq_line(col = 2)+
+  labs(title = "Influenza Normal Q-Q Plot")+xlab("Theoretical Quantiles")+
+  ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())
+
+
+
+e_standard_pneumonia <- model_est_resid_pneumonia$Residuals - (model_est_resid_pneumonia$Residuals %>% mean)
+e_standard_pneumonia <- e_standard_pneumonia/model_est_resid_pneumonia$Residuals %>% sd
+
+qq_plot_pneumonia <- ggplot(mapping = aes(sample = e_standard_pneumonia)) + geom_qq()+geom_qq_line(col = 2)+
+  labs(title = "Pneumonia Normal Q-Q Plot")+xlab("Theoretical Quantiles")+
+  ylab("Sample Quantiles")+theme_bw()+theme(panel.grid = element_blank())
+
+qq_plot_covid
+qq_plot_influenza
+qq_plot_pneumonia
+
+```
+
+As we can see from our normal qq plots for Covid 19 and pneumonia, we can see that most of the points are on the linear line. This suggests the data for the Covid 19 and pneumonia proportion of deaths is normally distributed.
+However, in the normal qq plot for influenza, we can see that most of the points are not on the linear line and is heavily tailed on the left side. This suggests the data for the influenza proportion of deaths is not normally distributed. We will not continue to study influenza as it violates our model assumptions. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Interaction Plot
+COVID19 %<>% group_by(AgeGroup,Sex)
+
+interaction_plot_covid <- ggplot(data =COVID19,aes(AgeGroup,COVIDProp,color = Sex,group = Sex)) +
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  ylab("Mean Proportion of Deaths")+
+  xlab("Factor A: Age Group" )+
+  labs(color = "Factor B: Sex",title = "Covid-19")+
+  scale_x_discrete(labels = c("65-74 years","75-84 years","85 years and over"))+
+  scale_color_manual(labels = c("Male","Female"),values = c("#7AD7F0","#FF69B4"))
+
+
+interaction_plot_influenza <- ggplot(data =COVID19,aes(AgeGroup,InfluenzaProp,color = Sex,group = Sex)) +
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  ylab("Mean Proportion of Deaths")+
+  xlab("Factor A: Age Group" )+
+  labs(color = "Factor B: Sex",title = "Influenza")+
+  scale_x_discrete(labels = c("65-74 years","75-84 years","85 years and over"))+
+  scale_color_manual(labels = c("Male","Female"),values = c("#7AD7F0","#FF69B4"))
+
+
+interaction_plot_pneumonia <- ggplot(data =COVID19,aes(AgeGroup,PneumoniaProp,color = Sex,group = Sex)) +
+  stat_summary(fun = mean,geom = "point")+
+  stat_summary(fun = mean,geom = "line")+
+  ylab("Mean Proportion of Deaths")+
+  xlab("Factor A: Age Group" )+
+  labs(color = "Factor B: Sex",title = "Pneumonia")+
+  scale_x_discrete(labels = c("65-74 years","75-84 years","85 years and over"))+
+  scale_color_manual(labels = c("Male","Female"),values = c("#7AD7F0","#FF69B4"))
+
+
+interaction_plot_covid
+interaction_plot_influenza
+interaction_plot_pneumonia
+
+COVID19 %<>% ungroup
+
+```
+
+In the Covid 19 interaction plot, we can see that there is no interaction effect because the lines do not intersect. We can also see that there is no Factor A effect as the mean line is close to horizontal. We can also see that there is Factor B effect as the means of the lines are not at the same level. We will test this further.
+
+In the influenza interaction plot, we can see that there is interaction effect because the lines intersect. We can also see that there is Factor A effect as the mean line is not horizontal. We can also see that there is Factor B effect as the means of the lines are not at the same level. 
+
+In the pneumonia interaction plot, we can see that there is interaction effect because the lines do intersect. We can also see that there is Factor A effect as the mean line is not horizontal. We can also see that there is Factor B effect as the means of the lines are not at the same level. We will test this further. 
+
+## Formal Analysis of Main Factor and Interaction Effects
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Anova Table Function
+AnovaTable_covid <- Anova.Table(a,b,n,model_est_resid_covid$Overall_Mean,model_est_resid_covid$Residuals,
+                          model_est_resid_covid$Yhat,model_est_resid_covid$Alpha,model_est_resid_covid$Beta,
+                          model_est_resid_covid$Gamma,Y,factorA,factorB)
+
+AnovaTable_pneumonia <- Anova.Table(a,b,n,model_est_resid_pneumonia$Overall_Mean,model_est_resid_pneumonia$Residuals,
+                          model_est_resid_pneumonia$Yhat,model_est_resid_pneumonia$Alpha,model_est_resid_pneumonia$Beta,
+                          model_est_resid_pneumonia$Gamma,P,factorA,factorB)
+
+
+output_lst_anova_table <- list(AnovaTable_covid,AnovaTable_pneumonia)
+
+output_lst_anova_table %>% 
+   kable(caption = "Covid-19 and Pneumonia Anova Table") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = TRUE,position = "center")
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# F test for Interaction/Factor A/Factor B effects
+F_tests_covid <- F_Test_Effects(AnovaTable_covid,0.05)
+F_tests_pneumonia <- F_Test_Effects(AnovaTable_pneumonia,0.05)
+
+
+F_tests_covid %>% 
+   kable(caption = "Covid-19 F-Tests for Effects") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+F_tests_pneumonia %>% 
+   kable(caption = "Pneumonia F-Tests for Effects") %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+
+
+```
+
+Covid 19
+
+Test for Interaction Effect
+
+$H_o: \gamma_{ij} = 0\space i = 1,2,3; j = 1,2$
+
+$H_a: Not \space all \space \gamma_{ij's} = 0$
+
+Test Statistic: $F^* = MSAB/MSE = (SSAB/(a-1)(b-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 5,311 }$
+
+Conclusion: Since the test statistic is less than the critical value, we fail to reject the null hypothesis at the 5% significance level and think that there is no interaction effect present in our study. 
+
+Test for Factor A effect
+
+$H_o: \alpha_1 = \alpha_2 = \alpha_3 = \alpha_4 = \alpha_5 = \alpha_6 $
+
+$H_a:$ Not all $\alpha_i$ equal to 0
+
+Test Statistic: $F^* = MSA/MSE = (SSA/(a-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 2, 311 }$
+
+This is our function in order to test for the factor A effect. The test statistic will divide the mean squared of Factor A by its mean squared error (MSE). Our critical value will be based on the qf function for the degrees of freedom of Factor A and error. We solve the p-value in a similar way and we finally end with a data frame containing the p-value, critical value and test statistic. This function allows us to input our ANOVA table values and our significance level of 0.05
+
+Conclusion: Since the test statistic is less than the critical value, we fail to reject the null hypothesis at the 5% significance level and think that there is no factor A effect (Age group) in our study.
+
+Test for Factor B effect
+
+$H_o: \beta_1 = \beta_2$
+
+$H_a:$ Not all $\beta_i$ equal to 0
+
+Test Statistic: $F^* = MSB/MSE = (SSB/(b-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 1, 311}$
+
+This is our function in order to test for the factor B effect. The test statistic will divide the mean squared of Factor B by its mean squared error (MSE). Our critical value will be based on the qf function for the degrees of freedom of Factor B and error. We solve the p-value in a similar way and we finally end with a data frame containing the p-value, critical value and test statistic. This function allows us to input our ANOVA table values and our significance level of 0.05.
+
+Conclusion: Since the test statistic is less than the critical value, we fail to reject the null hypothesis at the 5% significance level and think that there is no factor B effect (Sex) in our study.
+
+Pneumonia 
+
+Test for Interaction Effect
+
+$H_o: \gamma_{ij} = 0\space i = 1,2,3; j = 1,2$
+
+$H_a: Not \space all \space \gamma_{ij's} = 0$
+
+Test Statistic: $F^* = MSAB/MSE = (SSAB/(a-1)(b-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 5,311 }$
+
+Conclusion: Since the test statistic is greater than the critical value, we reject the null hypothesis at the 0.05 significance level and think that there is an interaction effect present in our study. 
+
+Test for Factor A effect
+
+$H_o: \alpha_1 = \alpha_2 = \alpha_3 = \alpha_4 = \alpha_5 = \alpha_6$
+
+$H_a:$ Not all $\alpha_i$ equal to 0
+
+Test Statistic: $F^* = MSA/MSE = (SSA/(a-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 2, 311 }$
+
+This is our function in order to test for the factor A effect. The test statistic will divide the mean squared of Factor A by its mean squared error (MSE). Our critical value will be based on the qf function for the degrees of freedom of Factor A and error. We solve the p-value in a similar way and we finally end with a data frame containing the p-value, critical value and test statistic. This function allows us to input our ANOVA table values and our significance level of 0.05
+
+Conclusion: Since the test statistic is greater than the critical value, we reject the null hypothesis at the 0.05 significance level and think that there is a factor A effect (Age group) in our study.
+
+Test for Factor B effect
+
+$H_o: \beta_1 = \beta_2$
+
+$H_a:$ Not all $\beta_i$ equal to 0
+
+Test Statistic: $F^* = MSB/MSE = (SSB/(b-1))/ (SSE/(nab-ab))$
+
+Decision Rule: Reject $H_o$ at $\alpha$ significance level if $F^*$ > $F_{1 -\alpha, 1, 311}$
+
+This is our function in order to test for the factor B effect. The test statistic will divide the mean squared of Factor B by its mean squared error (MSE). Our critical value will be based on the qf function for the degrees of freedom of Factor B and error. We solve the p-value in a similar way and we finally end with a data frame containing the p-value, critical value and test statistic. This function allows us to input our ANOVA table values and our significance level of 0.05.
+
+Conclusion: Since the test statistic is greater than the critical value, we reject the null hypothesis at the 0.05 significance level and think that there is factor B effect (Sex) in our study.
+
+## Conclusion
+
+After analyzing our data, we have sufficient evidence to state there is an association that age has more an effect than gender on COVID 19 distribution of deaths. Since this is an observational study, causation does not equal correlation so we cannot make any further conclusions about this relationship. We can also see that the proportion of male deaths related to COVID 19 is greater than that of the proportion of female deaths related to COVID 19. Because we cannot randomly assign the treatments in this study which are the different diseases, it is difficult to obtain a meaningful and clear conclusion. Furthermore, we are unsure of how this data was collected, including whether the population groups were randomly selected. There are several confounding variables including income of participants which can affect accessibility to covid tests, populations of the states, varying health guidelines of the states, and the political majorities within the states. 
+
+Most of the pneumonia cases probably resulted from Covid 19 cases that had escalated over time. Influenza had an abnormally small amount of deaths most likely because of public health guidelines such as mask mandates and social distancing. We can expand upon our analysis from this study by studying specific individuals who have the same demographics (age, gender,income) rather than the proportions of deaths caused by the diseases in various states.
+
+
+
+
+
+
+
+
+
+
+
+
+

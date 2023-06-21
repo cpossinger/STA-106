@@ -1,0 +1,346 @@
+---
+title: "Homework 4"
+author: "Camden Possinger"
+output:
+      prettydoc::html_pretty:
+        theme: tactile
+        highlith: github
+        toc: true
+        toc_depth: 5
+        
+        
+        
+      
+---
+# Answers
+
+## Part I
+
+### 1. 
+```{r message=FALSE, warning=FALSE}
+library(magrittr)
+library(dplyr)
+library(rlang)
+library(rlist)
+library(purrr)
+mydata = read.table("ColorStudy.txt", header=T)
+
+overall.test <- function(Y,mylevel,response,level.names){
+   mydata <- Y
+   r <- level.names %>% length
+   SSTR_vec <- c()
+   SSE_vec <- c()
+   factors <- list()
+   level_initial_values <- c(1:r) %>% as.list
+   # Initially populate the list with the correct number of values.
+   factors <- level_initial_values %>% imap(~list.append(.y))
+   # Set the names of the list with the correct factor names
+   names(factors) <- level.names
+   # Create a nested list that contains the observations,length, and mean of each factor level
+   factors %<>% imap(~list("observations" =mydata %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response),"length" = mydata %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response) %>% length,"mean" = mydata %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response) %>% mean)) 
+   # Calculate necessary values from the nested list to find the Test Statistic and P-value
+   overall_mean <- mydata %>% extract2(response) %>% mean
+   SSTR_vec <- factors %>% imap(~(factors[[.y]]$length*(factors[[.y]]$mean-overall_mean)^2)) %>% unlist
+   SSE_vec <-  factors %>% imap(~(factors[[.y]]$observations - factors[[.y]]$mean)^2) %>% unlist
+   SSTR <- SSTR_vec %>% sum
+   SSE <- SSE_vec %>% sum
+   print(SSE)
+   MSTR <- SSTR/(r-1)
+   MSE <- SSE/((mydata %>% extract2(response) %>% length) - r)
+   Test_Statistic <- MSTR/MSE
+   P_value <- pf(Test_Statistic,r-1,(mydata %>% extract2(response) %>% length) - r,lower.tail = FALSE)
+   output_list <- list("TestStat" = Test_Statistic,"pvalue" = P_value )
+   
+   return(output_list)
+}
+
+overall.test(Y = mydata, mylevel = "Color",response = "ResponseRate",level.names = levels(mydata$Color %>% as.factor))
+```
+
+This is a function to conduct $H_0: \mu_1 = \mu2 = . . . = \mu_r$ and $H_a:$ not all $\mu_i$ are equal. This function requires the data, factor level variable, response variable, and level names as input and returns a list with the corresponding test statistic and p-value. Here I test this function with the paper color data set in Homework 3.
+
+
+### 2. 
+
+```{r message=FALSE, warning=FALSE}
+contrast.test <- function(coefficients,c,Y,mylevel,response,level.names){
+ mydata <- Y
+   r <- level.names %>% length
+   SSE_vec <- c()
+   factor_level_means <- c()
+   factor_length <- c()
+   factors <- list()
+   level_initial_values <- c(1:r) %>% as.list
+   # Initially populate the list with the correct number of values.
+   factors <- level_initial_values %>% imap(~list.append(.y))
+   # Set the names of the list with the correct factor names
+   names(factors) <- level.names
+   # Create a nested list that contains the observations,length, and mean of each factor level
+   factors %<>% imap(~list("observations" =mydata %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response),"length" = mydata %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response) %>% length,"mean" = mydata %>% 
+                              filter(!!as.symbol(mylevel) == .y) %>% 
+                              extract2(response) %>% mean)) 
+   # Calculate necessary values from the nested list to find the Test Statistic 
+   SSE_vec <-  factors %>% imap(~(factors[[.y]]$observations - factors[[.y]]$mean)^2) %>% unlist
+   SSE <- SSE_vec %>% sum
+   MSE <- SSE/((mydata %>% extract2(response) %>% length) - r)
+   L_hat_means <- factors %>% imap_dbl(~factors[[.y]]$mean) %>% unname
+   L_hat_means %<>% imap_dbl(~coefficients[[.y]] * L_hat_means[[.y]])
+   L_hat <- L_hat_means %>% sum 
+   ci_s_length <- factors %>%  imap_dbl(~factors[[.y]]$length) %>% unname
+   ci_s_length %<>%  imap_dbl(~(coefficients[[.y]]^2)/(ci_s_length[[.y]]))
+   ci_s <- ci_s_length %>% sum 
+   var_L_hat <- MSE * ci_s 
+   sd_L_hat <- sqrt(var_L_hat)
+   TestStat <- (L_hat-c)/sd_L_hat
+   
+   return(TestStat)
+}
+contrast.test(c(0,0,-1,1),c = 0,mydata,"Color","ResponseRate",c("blue","green","orange","white"))
+```
+
+This is a function that conducts the test $H_0: L = c$ and $H_a: L \neq c$ where $L  = \sum_{i = 1}^r c_i\mu_i$ is a contrast. This function requires the coefficients of the $c_i$s, c value, data, factor variable, response variable, and level names and then returns the corresponding test statistic. Here I tested the function on Homework 3 Part II #2.
+
+
+## Part II
+
+#### 1. 
+```{r message=FALSE, warning=FALSE}
+library(ggpubr)
+library(purrr)
+library(kableExtra)
+blue <- mydata %>% filter(Color == "blue") %>% extract2("ResponseRate") 
+green <- mydata %>% filter(Color == "green") %>% extract2("ResponseRate") 
+orange <- mydata %>% filter(Color == "orange") %>% extract2("ResponseRate")
+white <- mydata %>% filter(Color == "white") %>% extract2("ResponseRate")
+fitted_values   <- c(rep(mean(blue),14),rep(mean(green),14),rep(mean(orange),15),rep(mean(white),14))
+observed_colors <- c(blue,green,orange,white)
+
+observed_colors_mean <- mean(observed_colors)
+SSE                  <- sum((observed_colors-fitted_values)^2)
+comparisons <- list(c("white","blue"),c("white","green"),c("white","orange"),
+                    c("blue","green"),c("blue","orange"),c("green","orange"))
+
+
+mean1 = c(mean(white),mean(white),mean(white),
+          mean(blue),mean(blue),mean(green))
+mean2 = c(mean(blue),mean(green),mean(orange),
+          mean(green),mean(orange),mean(orange))
+
+
+D_hat_calculation <- function(mean1,mean2){
+   D_hat <- mean1 - mean2
+}
+
+D_hat <- map2_dbl(mean1,mean2,D_hat_calculation)
+
+n1 <- c(white %>% length,white %>% length,white %>% 
+           length,blue %>% length,blue %>% length,green %>% length)
+n2 <- c(blue %>% length,green %>% length,orange %>% 
+           length,green %>% length,orange %>% length,orange %>% length)
+
+MSE <- SSE/(57-4)
+estimated_sd_squared <- function(n1,n2){
+   s_squared <- MSE*((1/n1)+(1/n2))
+} 
+
+est_sd_squared <- map2_dbl(n1,n2,estimated_sd_squared)
+est_sd <- est_sd_squared %>% sqrt
+
+test_stats_pairwise <- D_hat/est_sd
+
+tukey_p_values <- 1-ptukey(abs(test_stats_pairwise),4,53)
+
+T_family_stat <- qtukey(0.95,4,57-4)/sqrt(2) 
+
+
+
+```
+
+```{r message=FALSE, warning=FALSE}
+
+
+comparisons <- list(c(1,0,0,-1),c(0,-1,0,1),c(0,0,-1,1),
+                    c(-1,1,0,0),c(1,0,-1,0),c(0,1,-1,0))
+contrasts_comparisons <- imap_dbl(comparisons,~contrast.test(comparisons[[.y]],
+                                                             c = 0,mydata,"Color","ResponseRate",
+                                                             c("blue","green","orange","white")))
+
+output_table <- data.frame("Pairwise_Combinations" = c(("White,Blue"),("White,Green"),("White,Orange"),("Blue,Green"),("Blue,Orange"),("Green,Orange")),
+                           "Tukey_Test_Statistics" = test_stats_pairwise,"Contrast_Function_Test_Statistics" = contrasts_comparisons)
+
+output_table %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+
+```{r message=FALSE, warning=FALSE}
+contrast.test(c(-1/3,-1/3,-1/3,1),0,mydata,"Color","ResponseRate",c("blue","green","orange","white"))
+```
+The table above compares the Tukey test statistics from Homework 3 Part II #3 and the Contrast Function test statistics. We can see that the absolute values for each pairwise test statistic is the same. We can also see that the test statistic from the contrast.test() function returns the same test statistic as in Homework 3 Part II #4. 
+
+
+
+### 2.
+
+##### i.
+```{r message=FALSE, warning=FALSE}
+contrast_list <- list(c(1,-1,0,0),c(0,0,1,-1),c(1/2,1/2,-1/2,-1/2),c(1/2,-1/2,1/2,-1/2),c(1,-1/3,-1/3,-1/3),c(-1/3,1,-1/3,-1/3),c(-1/3,-1/3,1,-1/3),c(-1/3,-1/3,-1/3,1),c(1,1,2,-4),c(1,2,3,-6))
+
+problem_i_test_stats <- contrast_list %>% imap_dbl(~contrast.test(contrast_list[[.y]],0,mydata,"Color","ResponseRate",c("blue","green","orange","white")))
+
+display_table_i <- data.frame("Contrast_Test" = c("L1","L2","L3","L4","L5","L6","L7","L8","L9","L10"), "Test_Statistics" = problem_i_test_stats,"Absolute_Value_Test_Statistics" = abs(problem_i_test_stats),"F_Critical_Value" = rep(sqrt(3*qf(1-0.05,3,53)),10))
+
+display_table_i %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+```
+
+For the following ten tests we cannot use Tukey's procedure because we are interested in contrasts and we can't use the Bonferroni Procedure because we are considering all possible contrasts. This leaves us with Scheffe's Procedure. In the above table the test statistics are computed from the contrast.test() function in Part I. The decision rule for these tests would be conclude $H_0$ if $F^* \leq 2.887446$ otherwise we conclude $H_a$. Our conclusions for these tests are reject $H_0$ for every test except for L4,L5, and L7 where we fail to reject $H_0$. 
+
+##### ii.
+
+```{r message=FALSE, warning=FALSE}
+problem_ii_test_stats <- contrast_list %>% imap_dbl(~contrast.test(contrast_list[[.y]],0,mydata,"Color","ResponseRate",c("blue","green","orange","white")))
+
+compare_methods_ii <- data.frame("Scheffe" = sqrt(3*qf(1-0.05,3,53)),"Bonferroni" = 
+qt(1-0.05/(2*10),53))
+
+compare_methods_ii %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+display_table_ii <- data.frame("Contrast_Test" = c("L1","L2","L3","L4","L5","L6","L7","L8","L9","L10"), "Test_Statistics" = problem_i_test_stats,"Absolute_Value_Test_Statistics" = abs(problem_i_test_stats),"T_Critical_Value" = rep(compare_methods_ii$Scheffe,10))
+
+display_table_ii %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+```
+
+For this part we're interested in only ten contrasts. This rules out the Tukey Procedure since it cannot deal with contrasts easily. We now need to decide if we should use Scheffe's Procedure or Bonferroni's Procedure. We can use Bonferroni's Procedure since we're not interested in all possible contrasts only ten. From the above table we can see that the critical value from Scheffe's Procedure is smaller than the critical value from the Bonferroni Procedure. We should choose Scheffe's Procedure since it is the least conservative. The decision rule for these tests would be conclude $H_0$ if $F^* \leq 2.887446$ otherwise we conclude $H_a$. Our conclusions for these tests are reject $H_0$ for every test except for L4,L5, and L7 where we fail to reject $H_0$.  
+
+
+##### iii.
+
+
+```{r message=FALSE, warning=FALSE}
+problem_iii_test_stats <- contrast_list[1:6] %>% imap_dbl(~contrast.test(contrast_list[[.y]],0,mydata,"Color","ResponseRate",c("blue","green","orange","white")))
+
+display_table_iii <- data.frame("Contrast_Test" = c("L1","L2","L3","L4","L5","L6"), "Test_Statistics" = problem_iii_test_stats,"Absolute_Value_Test_Statistics" = abs(problem_iii_test_stats),"F_Critical_Value" = rep(sqrt(3*qf(1-0.05,3,53)),6))
+
+display_table_iii %>% 
+   kable() %>% 
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+```
+
+For this part we are interested in all possible contrasts, but can only test six. We cannot use Tukey's procedure because we are testing contrasts and we can't use the Bonferroni Procedure because we are considering all possible contrasts. This leaves us with Scheffe's Procedure. In the other above table the test statistics are computed from the contrast.test() function in the previous question. The decision rule for these tests would be conclude $H_0$ if $F^* \leq 2.887446$ otherwise we conclude $H_a$. Our conclusions for these tests are reject $H_0$ for every test except for L4 and L5 where we fail to reject $H_0$. 
+
+##### iv.
+
+```{r message=FALSE, warning=FALSE}
+problem_iv_test_stats <- contrast_list[1:6] %>% imap_dbl(~contrast.test(contrast_list[[.y]],0,mydata,"Color","ResponseRate",c("blue","green","orange","white")))
+
+compare_methods_iv <- data.frame("Scheffe" = sqrt(3*qf(1-0.05,3,53)),"Bonferroni" =
+qt(1-0.05/(2*6),53))
+
+compare_methods_iv %>%
+   kable() %>%
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+display_table_iv <- data.frame("Contrast_Test" = c("L1","L2","L3","L4","L5","L6"), "Test_Statistics" = problem_iv_test_stats,"Absolute_Value_Test_Statistics" = abs(problem_iv_test_stats),"T_Critical_Value" = rep(compare_methods_iv$Bonferroni,6))
+
+display_table_iv %>%
+   kable() %>%
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+```
+
+For this part we're interested in testing six contrasts. This rules out the Tukey Procedure since it cannot deal with contrasts easily. We now need to decide if we should use Scheffe's Procedure or Bonferroni's Procedure. We can use Bonferroni's Procedure since we're not interested in all possible contrasts. From the above table we can see that the critical value from Bonferroni's Procedure is smaller than the critical value from the Scheffe Procedure. We should choose Bonferroni's Procedure since it is the least conservative. The decision rule for these tests would be conclude $H_0$ if $t^* \leq 2.740906$ otherwise we conclude $H_a$. Our conclusions for these tests are reject $H_0$ for every test except for L4 and L5 where we fail to reject $H_0$.  
+
+##### v.
+
+```{r message=FALSE, warning=FALSE}
+contrast_list_v <- list(c(-1,0,0,1),c(0,-1,0,1),c(0,0,-1,1))
+
+problem_v_test_stats <- contrast_list_v %>% imap_dbl(~contrast.test(contrast_list_v[[.y]],0,mydata,"Color","ResponseRate",c("blue","green","orange","white")))
+
+compare_methods_v <- data.frame("Scheffe" = sqrt(3*qf(1-0.05,3,53)),"Bonferroni" =
+qt(1-0.05/(2*3),53),"Tukey" = qtukey(0.95,4,53)/sqrt(2))
+
+compare_methods_v %>%
+   kable() %>%
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+display_table_v <- data.frame("Contrast_Test" = c(c("White, Blue"),c("White, Green"),c("White, Orange")), "Test_Statistics" = problem_v_test_stats,"Absolute_Value_Test_Statistics" = abs(problem_v_test_stats),"T_Critical_Value" = rep(compare_methods_v$Bonferroni,3))
+
+display_table_v %>%
+   kable() %>%
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+```
+
+In this part we're interested in three pairwise tests between white and each other color respectively. Since we're interested in pairwise comparisons and are only looking at a predetermined number of them we can potentially use all three methods, Tukey, Scheffe, and Bonferroni. From the above table the smallest critical value of the three is from the Bonferroni Procedure. We should use the Bonferroni Procedure since it is the least conservative of the three procedures. The tests we are conducting are 
+
+$H_0: \mu_{white} = \mu_{blue}$ $H_a: \mu_{white} \neq \mu_{blue}$
+
+$H_0: \mu_{white} = \mu_{green}$ $H_a: \mu_{white} \neq \mu_{green}$
+
+$H_0: \mu_{white} = \mu_{orange}$ $H_a: \mu_{white} \neq \mu_{orange}$. 
+
+The decision rule is conclude the null hypothesis when $t^* \leq 2.472343$ and otherwise reject the null hypothesis. From the other above table we can reject the null hypothesis for each test and can conclude that:
+
+$\mu_{white} \neq \mu_{blue}$
+
+$\mu_{white} \neq \mu_{green}$
+
+$\mu_{white} \neq \mu_{orange}$
+
+##### vi.
+
+```{r message=FALSE, warning=FALSE}
+ max <- mydata %>% filter(ResponseRate == ResponseRate %>% max)
+ min <-  mydata %>% filter(ResponseRate == ResponseRate %>% min)
+ 
+ max_min_table <- data.frame("Color" = c(max$Color,min$Color),"ResponseRate" = c(paste0("max ",max$ResponseRate),paste0("min ",min$ResponseRate))) 
+
+max_min_table %>%
+   kable() %>%
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+problem_vi_test_stat <- contrast.test(c(0,-1,0,1),0,mydata,"Color","ResponseRate",c("blue","green","orange","white"))
+
+
+compare_methods_vi <- data.frame("Scheffe" = sqrt(3*qf(1-0.05,3,53)),"Tukey" = qtukey(0.95,4,53)/sqrt(2))
+
+compare_methods_vi %>%
+   kable() %>%
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+
+display_table_vi <- data.frame("Contrast_Test" = c(c("White, Green")), "Test_Statistics" = problem_vi_test_stat,"Absolute_Value_Test_Statistics" = abs(problem_vi_test_stat),"Tukey_Critical_Value" = rep(compare_methods_vi$Tukey,1))
+
+display_table_vi %>%
+   kable() %>%
+   kable_styling(bootstrap_options = "striped",full_width = FALSE,position = "center")
+```
+
+In this part we're interested in one pairwise test between the colors white and green. The problem is that we have to conduct this test after seeing the data, which causes data snooping. We can't use the single pairwise because of data snooping, so as a solution we can use a simultaneous testing procedure. Since we're interested in pairwise comparisons we can use the Tukey procedure and Scheffe Procedure. From the above table the smallest critical value of the two is from the Tukey Procedure. We should use the Tukey Procedure since it is the least conservative of the three procedures. The test we are conducting is:
+
+$H_0: \mu_{white} = \mu_{green}$ $H_a: \mu_{white} \neq \mu_{green}$
+
+The decision rule is conclude the null hypothesis when $q^* \leq 2.652456$ and otherwise reject the null hypothesis. From the other above table we can reject the null hypothesis for this single test and conclude that:
+
+$\mu_{white} \neq \mu_{green}$
+
+
+# Acknowledgements
+I'd like to thank Su-Ting Tan,Koby Lieu, and Andre Martinez for their help with Part 2

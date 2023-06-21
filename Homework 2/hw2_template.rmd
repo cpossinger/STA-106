@@ -1,0 +1,41 @@
+---
+title: "Homework 2"
+author: "Your Name "
+output: html_document
+---
+### Answers
+
+#### Part I
+
+1. The residual $e_{ij}=$ ...
+
+2. 
+
+
+#### Part II
+
+1. The aligned dot plot of the data (modify the contents inside the R section to fit for your needs)
+
+```{r}
+z = 1:5
+plot(z)
+```
+
+We see that ... (add your evaluation)
+
+2. (modify the contents inside the R section to fit for your needs)
+```{r}
+z = 1:5
+mean(z)
+```
+The fitted values are ...
+
+
+3.
+
+4.
+
+
+
+### Acknowledgements
+I thank Adams Davis for helpful discussion on Question #2 in Part I, and Jane Doe for her code in solving Question #1 in Part II.
